@@ -144,7 +144,6 @@ credentials.txt
 *.ipynb
 
 #Raw results
-data/centris/raw
 data/foursquare
 !data/foursquare/all.csv
 data/census
