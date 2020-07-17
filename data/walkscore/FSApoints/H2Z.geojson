@@ -1,0 +1,10 @@
+{
+"type": "FeatureCollection",
+"name": "H2Z",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 0 }, "geometry": { "type": "Point", "coordinates": [ -73.561762112310447, 45.506947401964538 ] } },
+{ "type": "Feature", "properties": { "id": 1 }, "geometry": { "type": "Point", "coordinates": [ -73.562576887248568, 45.505663542439244 ] } },
+{ "type": "Feature", "properties": { "id": 2 }, "geometry": { "type": "Point", "coordinates": [ -73.560504472067706, 45.505059637593973 ] } }
+]
+}
