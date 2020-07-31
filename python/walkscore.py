@@ -35,11 +35,12 @@ def get_fsa_points(fsa):
     for f in read_data:
         fsa = f['name']
         for feature in f['features']:
-            point = {}
-            point['fsa'] = fsa
-            point['latitude'] = feature['geometry']['coordinates'][1]
-            point['longitude'] = feature['geometry']['coordinates'][0]
-            data.append(point)
+            if feature['geometry'] is not None:
+                point = {}
+                point['fsa'] = fsa
+                point['latitude'] = feature['geometry']['coordinates'][1]
+                point['longitude'] = feature['geometry']['coordinates'][0]
+                data.append(point)
 
     return data
 
