@@ -1,0 +1,65 @@
+,Name,Latitude,Longitude,Address,fsa
+0,Station Angrignon,45.446466,-73.603118,"3456, Boulevard des Trinitaires, Ville-Émard, Le Sud-Ouest, Montréal, Agglomération de Montréal, Montréal (06), Québec, H8N 3E4, Canada", H8N 3E4
+1,Station Monk,45.451158,-73.593242,"6750, Boulevard Monk, Côte-Saint-Paul, Le Sud-Ouest, Montréal, Agglomération de Montréal, Montréal (06), Québec, H4E 3H9, Canada", H4E 3H9
+2,Station Jolicoeur,45.45701,-73.581691,"6200, Rue Drake, Côte-Saint-Paul, Le Sud-Ouest, Montréal, Agglomération de Montréal, Montréal (06), Québec, H4E 2A8, Canada", H4E 2A8
+3,Station Verdun,45.459441,-73.572021,"École Lévis-Sauvé, Rue Rielle, Verdun-Centre, Verdun, Montréal, Agglomération de Montréal, Montréal (06), Québec, H4G 1W3, Canada", H4G 1W3
+4,Station De l'Ã‰glise,45.461894,-73.567074,"4214, Rue Wellington, Verdun-Centre, Verdun, Montréal, Agglomération de Montréal, Montréal (06), Québec, H4G 1V6, Canada", H4G 1V6
+5,Station LaSalle,45.471063,-73.566267,"Station LaSalle, Rue Caisse, Verdun-Centre, Verdun, Montréal, Agglomération de Montréal, Montréal (06), Québec, H4G 3M3, Canada", H4G 3M3
+6,Station Charlevoix,45.478465,-73.569336,"2567, Rue Centre, Pointe-Saint-Charles, Le Sud-Ouest, Montréal, Agglomération de Montréal, Montréal (06), Québec, H3K 1J4, Canada", H3K 1J4
+7,Station Lionel-Groulx,45.482509,-73.58018,"Lionel-Groulx, BUS, Saint-Henri, Le Sud-Ouest, Montréal, Agglomération de Montréal, Montréal (06), Québec, H4C 1P3, Canada", H4C 1P3
+8,Station Atwater,45.490068,-73.585812,"2021, Avenue Atwater, Montagne, Ville-Marie, Montréal, Agglomération de Montréal, Montréal (06), Québec, H3Z 1X5, Canada", H3Z 1X5
+9,Station Guy-Concordia,45.49557,-73.57931,"Concordia University (SGW Campus), Rue Bishop, René-Lévesque, Ville-Marie, Montréal, Agglomération de Montréal, Montréal (06), Québec, H3G 2E9, Canada", H3G 2E9
+10,Station Peel,45.500879,-73.574715,"1102, Boulevard De Maisonneuve Ouest, René-Lévesque, Ville-Marie, Montréal, Agglomération de Montréal, Montréal (06), Québec, H3A 1N6, Canada", H3A 1N6
+11,Station McGill,45.504064,-73.571586,"2001, Boulevard Robert-Bourassa, René-Lévesque, Ville-Marie, Montréal, Agglomération de Montréal, Montréal (06), Québec, H3A 2A6, Canada", H3A 2A6
+12,Station Place-des-Arts,45.50822,-73.568433,"266, Boulevard De Maisonneuve Ouest, René-Lévesque, Ville-Marie, Montréal, Agglomération de Montréal, Montréal (06), Québec, H2X 2T1, Canada", H2X 2T1
+13,Station Saint-Laurent,45.511033,-73.564899,"12, Boulevard De Maisonneuve Est, Habitations Jeanne-Mance, Ville-Marie, Montréal, Agglomération de Montréal, Montréal (06), Québec, H2X 3X6, Canada", H2X 3X6
+14,Station Berri-UQAM 1,45.515226,-73.561082,"1500, Rue Berri, René-Lévesque, Ville-Marie, Montréal, Agglomération de Montréal, Montréal (06), Québec, H2L 2C4, Canada", H2L 2C4
+15,Station Beaudry,45.518831,-73.555837,"1255, Rue Sainte-Catherine Est, Sainte-Marie, Ville-Marie, Montréal, Agglomération de Montréal, Montréal (06), Québec, H2L 2H6, Canada", H2L 2H6
+16,Station Papineau,45.523988,-73.552703,"1427, Rue Cartier, Sainte-Marie, Ville-Marie, Montréal, Agglomération de Montréal, Montréal (06), Québec, H2K 2H5, Canada", H2K 2H5
+17,Station Frontenac,45.533504,-73.552196,"2570, Rue Ontario Est, Sainte-Marie, Ville-Marie, Montréal, Agglomération de Montréal, Montréal (06), Québec, H2K 1W8, Canada", H2K 1W8
+18,Station PrÃ©fontaine,45.541717,-73.554192,"Préfontaine, Rue Hochelaga, Préfontaine, Montréal, Agglomération de Montréal, Montréal (06), Québec, H1W 1G1, Canada", H1W 1G1
+19,Station Joliette,45.546832,-73.551391,"3575, Rue Hochelaga, Préfontaine, Montréal, Agglomération de Montréal, Montréal (06), Québec, H1W 1J1, Canada", H1W 1J1
+20,Station Pie-IX,45.553688,-73.551757,"4079, Avenue Pierre-De Coubertin, Préfontaine, Montréal, Agglomération de Montréal, Montréal (06), Québec, H1W 1E7, Canada", H1W 1E7
+21,Station Viau,45.560687,-73.54753,"4803, Avenue Pierre de Coubertin, Maisonneuve, Montréal, Agglomération de Montréal, Montréal (06), Québec, H1V 3V4, Canada", H1V 3V4
+22,Station Assomption,45.569285,-73.547336,"3091, Boulevard de l'Assomption, Longue-Pointe, Montréal, Agglomération de Montréal, Montréal (06), Québec, H1N 3T7, Canada", H1N 3T7
+23,Station Cadillac,45.576843,-73.54671,"Cadillac, Rue de Cadillac, Louis-Riel, Montréal, Agglomération de Montréal, Montréal (06), Québec, H1N 1B2, Canada", H1N 1B2
+24,Station Langelier,45.582736,-73.543133,"Langelier, Boulevard Langelier, Longue-Pointe, Montréal, Agglomération de Montréal, Montréal (06), Québec, H1N 1C5, Canada", H1N 1C5
+25,Station Radisson,45.589431,-73.539269,"7179, Rue Sherbrooke Est, Louis-Riel, Montréal, Agglomération de Montréal, Montréal (06), Québec, H1N 1E7, Canada", H1N 1E7
+26,Station HonorÃ©-Beaugrand,45.596572,-73.535376,"7907, Rue Sherbrooke Est, Dupéré, Montréal, Agglomération de Montréal, Montréal (06), Québec, H1L 1A4, Canada", H1L 1A4
+27,Station CÃ´te-Vertu,45.514237,-73.682757,"1000, Boulevard Décarie, Du Collège/Hodge, Saint-Laurent, Montréal, Agglomération de Montréal, Montréal (06), Québec, H4L 2A1, Canada", H4L 2A1
+28,Station Du CollÃ¨ge,45.509258,-73.674796,"1490, Rue Du Collège, Du Collège/Hodge, Saint-Laurent, Montréal, Agglomération de Montréal, Montréal (06), Québec, H4L 3K9, Canada", H4L 3K9
+29,Station De la Savane,45.500051,-73.661538,"8251, Boulevard Décarie, Savane, Côte-des-Neiges–Notre-Dame-de-Grâce, Mont-Royal, Agglomération de Montréal, Montréal (06), Québec, H4P 2S8, Canada", H4P 2S8
+30,Station Namur,45.494643,-73.652828,"7403, Boulevard Décarie, Savane, Côte-des-Neiges–Notre-Dame-de-Grâce, Montréal, Agglomération de Montréal, Montréal (06), Québec, H4P 2H5, Canada", H4P 2H5
+31,Station Plamondon,45.494644,-73.63826,"6276, Avenue Victoria, Savane, Côte-des-Neiges–Notre-Dame-de-Grâce, Montréal, Agglomération de Montréal, Montréal (06), Québec, H3W 1H8, Canada", H3W 1H8
+32,Station CÃ´te-Sainte-Catherine,45.492356,-73.6331,"4735, Chemin de la Côte-Sainte-Catherine, Snowdon, Côte-des-Neiges–Notre-Dame-de-Grâce, Montréal, Agglomération de Montréal, Montréal (06), Québec, H3T 1E3, Canada", H3T 1E3
+33,Station Snowdon 2,45.485433,-73.62773,"5103, Chemin Queen Mary, Snowdon, Côte-des-Neiges–Notre-Dame-de-Grâce, Montréal, Agglomération de Montréal, Montréal (06), Québec, H3W 1X4, Canada", H3W 1X4
+34,Station Villa-Maria,45.479709,-73.619821,"4243, Boulevard Décarie, Côte-Saint-Antoine, Côte-des-Neiges–Notre-Dame-de-Grâce, Montréal, Agglomération de Montréal, Montréal (06), Québec, H4A 1C6, Canada", H4A 1C6
+35,Station VendÃ´me,45.474101,-73.603706,"Vendôme, Boulevard De Maisonneuve Ouest, Upper Lachine, Côte-des-Neiges–Notre-Dame-de-Grâce, Montréal, Agglomération de Montréal, Montréal (06), Québec, H4A 3J1, Canada", H4A 3J1
+36,Station Place-Saint-Henri,45.47732,-73.586629,"4095, Rue Saint-Jacques, Saint-Henri, Le Sud-Ouest, Montréal, Agglomération de Montréal, Montréal (06), Québec, H4C 2S1, Canada", H4C 2S1
+37,Station Georges-Vanier,45.488897,-73.576852,"2060, Rue Saint-Antoine Ouest, Petite-Bourgogne, Le Sud-Ouest, Montréal, Agglomération de Montréal, Montréal (06), Québec, H3J 1B9, Canada", H3J 1B9
+38,Station Lucien-L'Allier,45.494745,-73.571074,"957, Rue Lucien-L'Allier, René-Lévesque, Ville-Marie, Montréal, Agglomération de Montréal, Montréal (06), Québec, H4G 1T4, Canada", H4G 1T4
+39,Station Bonaventure,45.498086,-73.567235,"1, , René-Lévesque, Ville-Marie, Montréal, Agglomération de Montréal, Montréal (06), Québec, H3B 4C9, Canada", H3B 4C9
+40,Station Square-Victoriaâ€“OACI,45.501937,-73.563118,"499, Avenue Viger Ouest, Quartier international, Ville-Marie, Montréal, Agglomération de Montréal, Montréal (06), Québec, H2Z 1R1, Canada", H2Z 1R1
+41,Station Place-d'Armes,45.506348,-73.559548,"954, Rue Saint-Urbain, Quartier international, Ville-Marie, Montréal, Agglomération de Montréal, Montréal (06), Québec, H2Z 1A1, Canada", H2Z 1A1
+42,Station Champ-de-Mars,45.510047,-73.556596,"954, Rue Sanguinet, René-Lévesque, Ville-Marie, Montréal, Agglomération de Montréal, Montréal (06), Québec, H2X 3E4, Canada", H2X 3E4
+43,Station Sherbrooke,45.51906,-73.569217,"503, Rue Cherrier, Parc-Lafontaine, Plateau Mont-Royal, Montréal, Agglomération de Montréal, Montréal (06), Québec, H2L 1H4, Canada", H2L 1H4
+44,Station Mont-Royal,45.524931,-73.581959,"482, Avenue du Mont-Royal Est, Parc-Laurier, Plateau Mont-Royal, Montréal, Agglomération de Montréal, Montréal (06), Québec, H2J 1W6, Canada", H2J 1W6
+45,Station Laurier,45.527399,-73.586907,"501, Boulevard Saint-Joseph Est, Parc-Laurier, Plateau Mont-Royal, Montréal, Agglomération de Montréal, Montréal (06), Québec, H2J1G2, Canada", H2J1G2
+46,Station Rosemont,45.531733,-73.59778,"509, Boulevard Rosemont, Saint-Édouard, Montréal, Agglomération de Montréal, Montréal (06), Québec, H2S 0C4, Canada", H2S 0C4
+47,Station Beaubien,45.535354,-73.604688,"6530, Avenue De Chateaubriand, Saint-Édouard, Montréal, Agglomération de Montréal, Montréal (06), Québec, H2S 2N7, Canada", H2S 2N7
+48,Station Jean-Talon 2,45.539056,-73.613902,"430, Rue Jean-Talon Est, Saint-Édouard, Montréal, Agglomération de Montréal, Montréal (06), Québec, H2R 1T6, Canada", H2R 1T6
+49,Station Jarry,45.543191,-73.628765,"8086, Rue Berri, Villeray, Crémazie, Montréal, Agglomération de Montréal, Montréal (06), Québec, H2R 1H2, Canada", H2R 1H2
+50,Station CrÃ©mazie,45.546082,-73.639052,"Édifice Louis LaBerge, Autoroute Métropolitaine - Autoroute Transcanadienne, Port-Maurice, Villeray–Saint-Michel–Parc-Extension, Montréal, Agglomération de Montréal, Montréal (06), Québec, H2E 2Z8, Canada", H2E 2Z8
+51,Station SauvÃ©,45.550757,-73.656017,"9961, Rue Berri, Ahuntsic, Montréal, Agglomération de Montréal, Montréal (06), Québec, H2M 1A1, Canada", H2M 1A1
+52,Station Henri-Bourassa,45.555277,-73.668172,"575, Boulevard Henri-Bourassa Est, Ahuntsic, Sault-au-Récollet, Montréal, Agglomération de Montréal, Montréal (06), Québec, H2C 2K4, Canada", H2C 2K4
+53,Station Jean-Drapeau,45.512429,-73.533127,"Jean-Drapeau, Allée Calder, Cité du Havre, Ville-Marie, Montréal, Agglomération de Montréal, Montréal (06), Québec, H3C 4W7, Canada", H3C 4W7
+54,Station CÃ´te-des-Neiges,45.496846,-73.623386,"5366, Chemin de la Côte-des-Neiges, Édouard-Montpetit, Côte-des-Neiges–Notre-Dame-de-Grâce, Montréal, Agglomération de Montréal, Montréal (06), Québec, H3T 1Y5, Canada", H3T 1Y5
+55,Station UniversitÃ©-de-MontrÃ©al,45.503188,-73.617699,"Université de Montréal, Chemin de Polytechnique, Édouard-Montpetit, Côte-des-Neiges–Notre-Dame-de-Grâce, Montréal, Agglomération de Montréal, Montréal (06), Québec, H3T 1J4, Canada", H3T 1J4
+56,Station Ã‰douard-Montpetit,45.50992,-73.612858,"55, Avenue Vincent-D'Indy, Outremont, Montréal, Agglomération de Montréal, Montréal (06), Québec, H2V 2C8, Canada", H2V 2C8
+57,Station Outremont,45.52037,-73.614976,"1371, Avenue Van Horne, Outremont, Montréal, Agglomération de Montréal, Montréal (06), Québec, H2V 1K3, Canada", H2V 1K3
+58,Station Acadie,45.523458,-73.623257,"1050, Avenue Beaumont, Mont-Royal, Agglomération de Montréal, Montréal (06), Québec, H3P 3E5, Canada", H3P 3E5
+59,Station Parc,45.530177,-73.624559,"400, Avenue Ogilvy, Parc-Extension, Montréal, Agglomération de Montréal, Montréal (06), Québec, H3N 1M3, Canada", H3N 1M3
+60,Station De Castelnau,45.535437,-73.619873,"7300, Boulevard Saint-Laurent, Parc-Jarry, Montréal, Agglomération de Montréal, Montréal (06), Québec, H2R 2X9, Canada", H2R 2X9
+61,Station Fabre,45.546753,-73.608106,"1551, Rue Jean-Talon Est, Père-Marquette, Montréal, Agglomération de Montréal, Montréal (06), Québec, H2E 1T1, Canada", H2E 1T1
+62,Station D'Iberville,45.553618,-73.601988,"7144, Rue D'Iberville, Gabriel-Sagard, Montréal, Agglomération de Montréal, Montréal (06), Québec, H2E 2Z4, Canada", H2E 2Z4
+63,Station Saint-Michel,45.55956,-73.600002,"7333, Boulevard Saint-Michel, François-Perrault, Montréal, Agglomération de Montréal, Montréal (06), Québec, H2A 3M4, Canada", H2A 3M4
