@@ -158,6 +158,7 @@ def main():
         print('Total process time : {0:.0f} min {1:.0f}'.format(m, s))
 
         # Export the data into a CSV file
+        points.drop(points.columns[points.apply(lambda col: 'Unnamed' in str(col))], axis=1, inplace=True)
         points.to_csv(output_file_path)
         print('The file {} has been created'.format(output_file_path))
 
