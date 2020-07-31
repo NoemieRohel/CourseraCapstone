@@ -17,6 +17,8 @@ import pandas as pd
 import numpy as np
 import json
 import folium
+import os
+from geopy.geocoders import Nominatim
 ```
 
 <!-- #region heading_collapsed=true -->
@@ -44,16 +46,10 @@ def process_categories(category_name):
             return 'Restaurant/Bar'
     
     # Kids care (school, day care, playground, ...)
-    kids = ['elementary school', 'middle school', 'preschool', 'care', 'playground']
+    kids = ['care', 'playground']
     for k in kids:
-        if k in str(category_name).lower() or str(category_name) == 'School':
+        if k in str(category_name).lower():
             return 'KidCare'
-    
-    # Education
-    education = ['school', 'college & university', 'university', 'adult education center']
-    for e in education:
-        if e in str(category_name).lower() and str(category_name) not in ['Driving School']:
-            return 'EducationGraduate'
     
     # Entertainment
     entertainment = ['museum', 'theater', 'entertainment', 'event space', 'art gallery', 'performing', 'public art',
@@ -114,50 +110,251 @@ foursquare['category'].value_counts()
 ```
 
 <!-- #region heading_collapsed=true -->
-# Map
+# STM
+<!-- #endregion -->
+
+<!-- #region hidden=true -->
+Let's get the fsa for each metro stations and save it in a CSV file. There's no need to do it each time as long as the CSV file is available.
 <!-- #endregion -->
 
 ```{python hidden=TRUE}
-census = pd.read_csv('../data/census/all.csv')
-test = census[census['Category'] == '  Revenu total médian des ménages en 2015 ($)'][['FSA', 'CategoryValue']]
-test
+# Get the data from the geojson file for each metro station
+with open('../data/metro/metro_stations.geojson') as f:
+    data = json.load(f)
+metro = []
+for feature in data['features']:
+    if feature['geometry'] is not None:
+        station = {}
+        station['Name'] = feature['properties']['stop_name']
+        station['Latitude'] = feature['geometry']['coordinates'][1]
+        station['Longitude'] = feature['geometry']['coordinates'][0]
+        metro.append(station)
+
+# Get the addresses from the coordinates to have the fsa
+geolocator = Nominatim(user_agent='mtl')
+for m in metro:
+    location = geolocator.reverse(str(m['Latitude']) + ', ' + str(m['Longitude']))
+    m['fsa'] = location.address.split(',')[-2][1:4]
+
+# Save the data into a csv file to have it for the next times
+pd.DataFrame(metro).to_csv('../data/metro/metro_stations.csv')
 ```
+
+```{python hidden=TRUE}
+pd.DataFrame(metro).head()
+```
+
+<!-- #region heading_collapsed=true -->
+# Schools
+<!-- #endregion -->
+
+```{python hidden=TRUE}
+# Get the data from the CSV files
+college = pd.read_csv('../data/schools/ES_Collegial.csv', sep=';')
+univ = pd.read_csv('../data/schools/ES_Universitaire.csv', sep=';')
+pps_gouv = pd.read_csv('../data/schools/PPS_Gouvernemental.csv', sep=';')
+pps_prive = pd.read_csv('../data/schools/PPS_Prive_Installation.csv', sep=';')
+pps_public = pd.read_csv('../data/schools/PPS_Public_Ecole.csv', sep=';')
+pps_public.rename(columns={'CD_POSTL_GDUNO_ORGNS': 'CD_POSTL_GDUNO'}, inplace=True)
+
+# Keep only the schools in the Montreal island
+def mtl_fsa(postal_code):
+    if postal_code[0:2] in ['H1', 'H2', 'H3', 'H4', 'H5', 'H8', 'H9']:
+        return True
+    else:
+        return False
+college = college[college['CD_POSTL_GDUNO'].apply(mtl_fsa)].reset_index(drop=True)
+univ = univ[univ['CD_POSTL_GDUNO'].apply(mtl_fsa)].reset_index(drop=True)
+pps_gouv = pps_gouv[pps_gouv['CD_POSTL_GDUNO'].apply(mtl_fsa)].reset_index(drop=True)
+pps_prive = pps_prive[pps_prive['CD_POSTL_GDUNO'].apply(mtl_fsa)].reset_index(drop=True)
+pps_public = pps_public[pps_public['CD_POSTL_GDUNO'].apply(mtl_fsa)].reset_index(drop=True)
+
+# Duplicate rows with multiple school levels and separate the name to have one row for one school level
+def school_level(school):
+    for i in school.index:
+        s = school.loc[i, 'ORDRE_ENS'].split('-')
+        if len(s) > 1:
+            for j in range(1, len(s)):
+                m = max(school.index)+1
+                school.loc[m] = school.loc[i]
+                school.loc[m, 'ORDRE_ENS'] = s[j]
+                if school.loc[m, 'ORDRE_ENS'][0] == ' ':
+                    school.loc[m, 'ORDRE_ENS'] = school.loc[m, 'ORDRE_ENS'][1:]
+                if school.loc[m, 'ORDRE_ENS'][-1] == ' ':
+                    school.loc[m, 'ORDRE_ENS'] = school.loc[m, 'ORDRE_ENS'][:-1]
+            school.loc[i, 'ORDRE_ENS'] = s[0]
+            school.loc[i, 'ORDRE_ENS'] = school.loc[i, 'ORDRE_ENS'][:-1]
+    school.sort_values(by=['OBJECTID'], inplace=True)
+    school.reset_index(drop=True, inplace=True)
+    return school
+pps_prive = school_level(pps_prive)
+pps_public = school_level(pps_public)
+
+# Create a dataframe containing all the schools with the FSA and the school level
+schools = pd.concat([college[['OBJECTID', 'CD_POSTL_GDUNO', 'ORDRE_ENS']],
+                     univ[['OBJECTID', 'CD_POSTL_GDUNO', 'ORDRE_ENS']],
+                     pps_gouv[['OBJECTID', 'CD_POSTL_GDUNO', 'ORDRE_ENS']],
+                     pps_prive[['OBJECTID', 'CD_POSTL_GDUNO', 'ORDRE_ENS']],
+                     pps_public[['OBJECTID', 'CD_POSTL_GDUNO', 'ORDRE_ENS']]])
+schools['CD_POSTL_GDUNO'] = schools['CD_POSTL_GDUNO'].apply(lambda x: x[0:3])
+schools.rename(columns={'OBJECTID': 'SchoolId', 'CD_POSTL_GDUNO': 'fsa', 'ORDRE_ENS': 'Level'}, inplace=True)
+schools.sort_values(by=['fsa'], inplace=True)
+schools.reset_index(drop=True, inplace=True)
+schools = schools.groupby(['fsa', 'Level']).agg(NbSchool=('SchoolId','count')).reset_index()
+```
+
+```{python hidden=TRUE}
+schools.head()
+```
+
+<!-- #region heading_collapsed=true -->
+# FSA
+<!-- #endregion -->
+
+<!-- #region hidden=true -->
+Let's see all the available and not available walkscores, transitscores and bikescores on the map.
+<!-- #endregion -->
 
 ```{python hidden=TRUE}
 latitude = 45.505331312
 longitude = -73.55249779
-map_montreal = folium.Map(location=[latitude, longitude], zoom_start=10)
-quebec_geo = "../data/mtl_fsa_map.geojson"
-map_montreal.choropleth(geo_data=quebec_geo,
-    data = test,
-    columns=['FSA','CategoryValue'],
-    key_on='feature.properties.CFSAUID',
-    fill_color='YlOrRd',
-    fill_opacity=0.7, 
-    line_opacity=0.2,
-    legend_name='Median revenue by FSA')   
+mtl_geo_json = "../data/mtl_fsa_map.geojson"
+
+ws = pd.read_csv('../data/walkscore/walkscore.csv')
+ws.drop(ws.columns[ws.apply(lambda col: 'Unnamed' in str(col))], axis=1, inplace=True)
+
+score = 'Walkscore' # 'Walkscore' or 'Transitscore' or 'Bikescore'
+
+nan_ws_map = folium.Map(location=[latitude, longitude], zoom_start=10)
+for lat, lng, score in zip(ws['latitude'], ws['longitude'], ws[score]):
+    label = folium.Popup(str(score), parse_html=True)
+    if np.isnan(score):
+        folium.CircleMarker(
+            [lat, lng],
+            radius=1,
+            popup=label,
+            color='red',
+            parse_html=False).add_to(nan_ws_map)
+    else:
+        folium.CircleMarker(
+            [lat, lng],
+            radius=1,
+            popup=label,
+            color='blue',
+            parse_html=False).add_to(nan_ws_map)
     
-map_montreal
+nan_ws_map
+```
+
+<!-- #region hidden=true -->
+The available walkscores and bikescores can be processed but the transitscores are not relevant because they are too concentrated on a single geographic area.
+<!-- #endregion -->
+
+```{python hidden=TRUE}
+ws_processed = ws.groupby('fsa', as_index=False).mean()
+ws_processed.drop(columns='Transitscore', inplace=True)
+ws_processed
+```
+
+<!-- #region hidden=true -->
+Let's see the choropleth map of Montreal for the walkscores and bikescores:
+<!-- #endregion -->
+
+```{python hidden=TRUE}
+score = 'Walkscore' # 'Walkscore' or 'Bikescore'
+bins = {'Walkscore': [0, 25, 50, 70, 90, 100],
+        'Bikescore': [0, 50, 70, 90, 100]}
+
+ws_map = folium.Map(location=[latitude, longitude], zoom_start=10)
+label = folium.Popup(lgd[score], parse_html=True)
+folium.Choropleth(
+    geo_data=mtl_geo_json,
+    data=ws_processed,
+    columns=['fsa', 'Walkscore'],
+    key_on='feature.properties.CFSAUID',
+    fill_color='BuPu',
+    fill_opacity=0.8, 
+    line_opacity=0.2,
+    bins=bins[score],
+    legend_name=score,
+    popup=label
+).add_to(ws_map)
+
+ws_map
+```
+
+<!-- #region hidden=true -->
+Walkscore:
+- 0-25: Car-dependent *(almost all errands require a car)*
+- 25-50: Car-dependent *(most errands require a car)*
+- 50-70: Somewhat walkable *(some errands can be accomplished on foot)*
+- 70-90: Very walkable *(most errands can be accomplished on foot)*
+- 90-100: Walker's paradize *(daily errands do not require a car)*
+
+Bikescore:
+- 0-50: Somewhat bikeable *(minimal bike infrastructure)*
+- 50-70: Bikeable *(some bike infrastructure)*
+- 70-90: Very bikeable *(biking is convenient for most trips)*
+- 90-100: Biker's paradize *(daily errands can be accomplished on a bike)*
+<!-- #endregion -->
+
+<!-- #region heading_collapsed=true -->
+# Cleaning FSA
+<!-- #endregion -->
+
+```{python hidden=TRUE}
+def get_fsa_points(fsa):
+    # Get the coordinates for the generated points
+    folder_path = '../data/walkscore/FSApoints'
+    read_data = []
+    for (dirpath, dirnames, filenames) in os.walk(folder_path):
+        if fsa is not None:
+            filenames = ['{}.geojson'.format(fsa)]
+        for file_name in filenames:
+            with open(os.path.join(dirpath, file_name)) as f:
+                read_data.append(json.load(f))
+    data = []
+    for f in read_data:
+        fsa = f['name']
+        for feature in f['features']:
+            if feature['geometry'] is not None:
+                point = {}
+                point['fsa'] = fsa
+                point['latitude'] = feature['geometry']['coordinates'][1]
+                point['longitude'] = feature['geometry']['coordinates'][0]
+                data.append(point)
+
+    return data
 ```
 
 ```{python hidden=TRUE}
-map_mtl = folium.Map(location=[latitude, longitude], zoom_start=10)
+points = pd.DataFrame(get_fsa_points(None))
+points
+```
 
-map_mtl.choropleth(geo_data = quebec_geo, fill_opacity = 0)
-# add markers to map
-for lat, lng in zip(centris['Latitude'], centris['Longitude']):
-#     label = folium.Popup(label, parse_html=True)
-    folium.CircleMarker(
-        [lat, lng],
-        radius=5,
-#         popup=label,
-        color='blue',
-        fill=True,
-        fill_color='#3186cc',
-        fill_opacity=0.7,
-        parse_html=False).add_to(map_mtl)  
-    
-map_mtl
+```{python hidden=TRUE}
+ws1 = pd.read_csv('../data/walkscore/walkscore_in_water.csv')
+ws1.drop(ws1.columns[ws1.apply(lambda col: 'Unnamed' in str(col))], axis=1, inplace=True)
+ws1
+```
+
+```{python hidden=TRUE}
+# points[['latitude']].apply(lambda x: round(x, 8))
+for i in points.index.values:
+    points.loc[i, 'latitude'] = round(points.loc[i, 'latitude'], 8)
+    points.loc[i, 'longitude'] = round(points.loc[i, 'longitude'], 8)
+for i in ws1.index.values:
+    ws1.loc[i, 'latitude'] = round(ws1.loc[i, 'latitude'], 8)
+    ws1.loc[i, 'longitude'] = round(ws1.loc[i, 'longitude'], 8)
+```
+
+```{python hidden=TRUE}
+test = pd.concat([points, ws1])
+test
+df = test[test.duplicated(subset=['fsa', 'latitude', 'longitude'])]
+df.reset_index(drop=True, inplace=True)
+df
+df.to_csv('../data/walkscore/walkscore.csv')
 ```
 
 ```{python hidden=TRUE}
