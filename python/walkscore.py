@@ -142,7 +142,8 @@ def main():
                           'Bikescore', 'BikeDescription']
             points = points.reindex(columns=np.append(points.columns.values, ws_columns))
         else:
-            points = pd.read_csv(args.input_file)
+            points = pd.read_csv(args.input_file, index_col=0)
+            output_file_path = args.input_file
         nb_call = 0
         start_time = time.time()
         for i in points.index:
@@ -158,7 +159,6 @@ def main():
         print('Total process time : {0:.0f} min {1:.0f}'.format(m, s))
 
         # Export the data into a CSV file
-        points.drop(points.columns[points.apply(lambda col: 'Unnamed' in str(col))], axis=1, inplace=True)
         points.to_csv(output_file_path)
         print('The file {} has been created'.format(output_file_path))
 
