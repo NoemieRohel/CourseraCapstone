@@ -3,7 +3,6 @@ Housing:
   categories_single:
     - 9.1.5
     - 9.1.13.5
-    - 9.1.13.6
   categories_plural:
     - 9.1.1
     - 9.1.3
@@ -29,14 +28,9 @@ Income:
   categories_single:
     - 4.1.1
     - 4.1.1.1.1
-    - 4.1.2.1.1
     - 4.2.1
     - 4.2.1.1
   categories_plural:
-    - 4.1.5
-    - 4.2.1
-    - 4.2.2
-    - 4.2.3
 
 Mobility:
   topic_id: 12
@@ -50,13 +44,10 @@ Population:
   categories_single:
     - 1.1.1
     - 1.1.2
-    - 1.1.3
     - 1.1.4
     - 1.1.6
     - 1.1.7
-    - 1.2.3
     - 1.2.4
   categories_plural:
-    - 1.2.1
 
 

@@ -5,9 +5,10 @@ import argparse
 import time
 import datetime
 import pandas as pd
+import numpy as np
 
 
-def extract_infos_from_census(dguid, topic, topic_infos, lang='F'):
+def extract_infos_from_census(dguid, topic, topic_infos, lang):
     # Get the information from the census for a specific topic and a dguid
     # Call the API
     url = 'https://www12.statcan.gc.ca/rest/census-recensement/CPR2016.json'
@@ -32,22 +33,32 @@ def extract_infos_from_census(dguid, topic, topic_infos, lang='F'):
                                   'HIER_ID': 'CategoryHierId'})
         df = df.append(dfi)
 
-    for cat in topic_infos['categories_plural']:
-        typ = [i for i in res.HIER_ID if i.startswith(cat + '.')]
+    if topic_infos['categories_plural'] == '':
+        df['TypeValue'] = np.nan
+        df['Type'] = np.nan
+        df['TypeHierId'] = np.nan
 
-        if len(typ) == 0:
-            dfi = res.loc[res.HIER_ID == cat, ['TEXT_NAME_NOM', 'T_DATA_DONNEE', 'HIER_ID']].reset_index()
-            dfi = dfi.rename(columns={'T_DATA_DONNEE': 'CategoryValue',
-                                      'TEXT_NAME_NOM': 'Category',
-                                      'HIER_ID': 'CategoryHierId'})
-        else:
-            dfi = res.loc[res.HIER_ID.isin(typ), ['TEXT_NAME_NOM', 'T_DATA_DONNEE', 'HIER_ID']].reset_index(drop=True)
-            dfi['Category'] = res.loc[res.HIER_ID == cat, 'TEXT_NAME_NOM'].values[0]
-            dfi['CategoryValue'] = res.loc[res.HIER_ID == cat, 'T_DATA_DONNEE'].values[0]
-            dfi['CategoryHierId'] = cat
-            dfi = dfi.rename(columns={'T_DATA_DONNEE': 'TypeValue', 'TEXT_NAME_NOM': 'Type', 'HIER_ID': 'TypeHierId'})
+    else:
+        for cat in topic_infos['categories_plural']:
+            typ = [i for i in res.HIER_ID if i.startswith(cat + '.')]
 
-        df = df.append(dfi)
+            if len(typ) == 0:
+                dfi = res.loc[res.HIER_ID == cat, ['TEXT_NAME_NOM', 'T_DATA_DONNEE', 'HIER_ID']].reset_index()
+                dfi = dfi.rename(columns={'T_DATA_DONNEE': 'CategoryValue',
+                                        'TEXT_NAME_NOM': 'Category',
+                                        'HIER_ID': 'CategoryHierId'})
+            else:
+                dfi = res.loc[res.HIER_ID.isin(typ), ['TEXT_NAME_NOM',
+                                                      'T_DATA_DONNEE',
+                                                      'HIER_ID']].reset_index(drop=True)
+                dfi['Category'] = res.loc[res.HIER_ID == cat, 'TEXT_NAME_NOM'].values[0]
+                dfi['CategoryValue'] = res.loc[res.HIER_ID == cat, 'T_DATA_DONNEE'].values[0]
+                dfi['CategoryHierId'] = cat
+                dfi = dfi.rename(columns={'T_DATA_DONNEE': 'TypeValue',
+                                          'TEXT_NAME_NOM': 'Type',
+                                          'HIER_ID': 'TypeHierId'})
+
+            df = df.append(dfi)
 
     df['Topic'] = topic
     df['idTopic'] = topic_infos['topic_id']
@@ -87,7 +98,7 @@ def main():
 
     args = parser.parse_args()
 
-    # Retrieve all the information from centris
+    # Retrieve all the information from census
     if args.fsa == 'all':
         fsas = all_fsas
     else:
