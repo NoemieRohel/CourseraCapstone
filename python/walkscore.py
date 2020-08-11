@@ -37,9 +37,9 @@ def get_fsa_points(fsa):
         for feature in f['features']:
             if feature['geometry'] is not None:
                 point = {}
-                point['fsa'] = fsa
-                point['latitude'] = feature['geometry']['coordinates'][1]
-                point['longitude'] = feature['geometry']['coordinates'][0]
+                point['FSA'] = fsa
+                point['Latitude'] = feature['geometry']['coordinates'][1]
+                point['Longitude'] = feature['geometry']['coordinates'][0]
                 data.append(point)
 
     return data
@@ -149,8 +149,8 @@ def main():
         for i in points.index:
             if np.isnan(points.loc[i, 'Walkscore']) and nb_call < int(args.call_max):
                 print('---Getting the Walkscore for the point {}---'.format(i))
-                walkscore = get_walkscore(points.loc[i, 'fsa'], points.loc[i, 'latitude'],
-                                          points.loc[i, 'longitude'], credentials)
+                walkscore = get_walkscore(points.loc[i, 'FSA'], points.loc[i, 'Latitude'],
+                                          points.loc[i, 'Longitude'], credentials)
                 for key in walkscore.keys():
                     points.loc[i, key] = walkscore[key]
                 nb_call += 1

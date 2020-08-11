@@ -39,7 +39,7 @@ def main():
     for m in metro:
         print('---Getting the FSA for {}---'.format(m['Name']))
         location = geolocator.reverse(str(m['Latitude']) + ', ' + str(m['Longitude']))
-        m['fsa'] = location.address.split(',')[-2][1:4]
+        m['FSA'] = location.address.split(',')[-2][1:4]
 
     m, s = divmod(time.time() - start_time, 60)
     print('# total : {}'.format(len(metro)))
