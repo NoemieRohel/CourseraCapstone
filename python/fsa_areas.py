@@ -28,14 +28,14 @@ def main():
     for line in table:
         if line[0:2] in ['H1', 'H2', 'H3', 'H4', 'H5', 'H8', 'H9'] and line[3] == ' ':
             data = {}
-            data['fsa'] = line[0:3]
+            data['FSA'] = line[0:3]
             if line.split(' ')[-1] == 'km²':
-                data['area(km2)'] = float(line.split(' ')[-2])
+                data['Area(km2)'] = float(line.split(' ')[-2])
             elif line.split(' ')[-1] == 'm²':
                 area = line.split(' ')[-2].replace(',', '')
-                data['area(km2)'] = float(area) / 1000000
+                data['Area(km2)'] = float(area) / 1000000
             else:
-                data['area(km2)'] = None
+                data['Area(km2)'] = None
             fsa_areas.append(data)
 
     driver.quit()
