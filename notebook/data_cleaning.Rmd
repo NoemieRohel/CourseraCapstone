@@ -41,7 +41,7 @@ def process_categories(category_name):
                   'fish & chips', 'burrito', 'poutine', 'noodle', 'brasserie', 'well', 'salad place', 'beer garden']
     for r in restaurant:
         if r in str(category_name).lower() and str(category_name) not in ['Salon / Barbershop', 'Piano Bar', 'Public Art']:
-            return 'Restaurant/Bar'
+            return 'RestaurantBar'
     
     # Kids care (school, day care, playground, ...)
     kids = ['care', 'playground']
@@ -57,7 +57,7 @@ def process_categories(category_name):
                      'piano', 'circus', 'zoo', 'spa', 'massage', 'casino', 'play area']
     for e in entertainment:
         if e in str(category_name).lower():
-            return 'Entertainment/Culture'
+            return 'EntertainmentCulture'
     
     # Services
     services = ['store', 'shop', 'service', 'pharmacy', 'bank', 'bakery', 'gas station', 'government', 'bodega',
@@ -115,7 +115,7 @@ foursquare_processed.head()
 
 ```{python hidden=TRUE}
 metro_stations = pd.read_csv('../data/metro/metro_stations.csv', index_col=0)
-metro = metro_stations.groupby(['FSA']).agg(NbMetro=('Name', 'count')).reset_index()
+metro = metro_stations.groupby(['FSA']).agg(MetroStations=('Name', 'count')).reset_index()
 metro.head()
 ```
 
@@ -180,7 +180,7 @@ def classify_school_levels(level):
     if level in ['Préscolaire', 'Primaire', 'Secondaire']:
         return 'PPS'
     if level in ['Collégial', 'Universitaire']:
-        return 'Post-secondary'
+        return 'PostSecondary'
     if level in ['Éducation aux adultes', 'Formation professionnelle']:
         return 'ProfessionalFormation-AdultEducation'
 schools['SchoolType'] = schools['Level'].apply(classify_school_levels)
@@ -305,13 +305,41 @@ Bikescore:
 - 90-100: Biker's paradise *(daily errands can be accomplished on a bike)*
 <!-- #endregion -->
 
-# Creating the ultimate dataframes
+# Creating the master dataframes
 
 ```{python}
-df_env = ws_processed[['FSA', 'Walkscore', 'Bikescore']]
-df = foursquare_processed[foursquare_processed['Category'] == 'KidCare'][['FSA', 'NbVenue']]
-df_env = df_env.join(df.rename(columns={'NbVenue': 'KidCare'}).set_index('FSA'), on='FSA')
-df_env['KidCare'].value_counts()
+# Get the FSA with their areas to create the master dataframe for the FSA environment
+df_env = pd.read_csv('../data/fsa_areas.csv', index_col=0)
+
+# Add the walkscores and bikescores to the dataframe
+df_env = df_env.join(ws_processed[['FSA', 'Walkscore', 'Bikescore']].set_index('FSA'), on='FSA')
+
+# Add the foursquare venues
+categories = ['RestaurantBar', 'KidCare', 'EntertainmentCulture', 'Services', 'Sports', 'Outdoor', 'Medical', 'Religious']
+for category in categories:
+    df = foursquare_processed[foursquare_processed['Category'] == category][['FSA', 'NbVenue']]
+    df_env = df_env.join(df.rename(columns={'NbVenue': category}).set_index('FSA'), on='FSA')
+    # Get the density instead of the number
+    df_env[category] = df_env[category] / df_env['Area(km2)']
+
+# Add the metro stations
+df_env = df_env.join(metro.set_index('FSA'), on='FSA')
+# Get the density instead of the number
+df_env['MetroStations'] = df_env['MetroStations'] / df_env['Area(km2)']
+
+# Add the schools
+school_types = ['PPS', 'PostSecondary', 'ProfessionalFormation-AdultEducation']
+for school_type in school_types:
+    df = schools[schools['SchoolType'] == school_type][['FSA', 'NbSchool']]
+    df_env = df_env.join(df.rename(columns={'NbSchool': school_type}).set_index('FSA'), on='FSA')
+    # Get the density instead of the number
+    df_env[school_type] = df_env[school_type] / df_env['Area(km2)']
+
+df_env.round(2).head()
+```
+
+```{python}
+df_env['RestaurantBar'].round(2).unique()
 ```
 
 <!-- #region heading_collapsed=true -->
