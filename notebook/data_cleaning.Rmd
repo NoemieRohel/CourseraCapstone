@@ -103,9 +103,9 @@ def process_categories(category_name):
     return 'Other'
     
 
-foursquare['category'] = foursquare['category_name'].apply(process_categories)
-foursquare_processed = foursquare[['FSA', 'id', 'category']]
-foursquare_processed = foursquare_processed.groupby(['FSA', 'category']).agg(NbVenue=('id','count')).reset_index()
+foursquare['Category'] = foursquare['category_name'].apply(process_categories)
+foursquare_processed = foursquare[['FSA', 'id', 'Category']]
+foursquare_processed = foursquare_processed.groupby(['FSA', 'Category']).agg(NbVenue=('id','count')).reset_index()
 foursquare_processed.head()
 ```
 
@@ -115,7 +115,8 @@ foursquare_processed.head()
 
 ```{python hidden=TRUE}
 metro_stations = pd.read_csv('../data/metro/metro_stations.csv', index_col=0)
-metro_stations.head()
+metro = metro_stations.groupby(['FSA']).agg(NbMetro=('Name', 'count')).reset_index()
+metro.head()
 ```
 
 <!-- #region heading_collapsed=true -->
@@ -171,7 +172,7 @@ schools = pd.concat([college[['OBJECTID', 'CD_POSTL_GDUNO', 'ORDRE_ENS']],
                      pps_prive[['OBJECTID', 'CD_POSTL_GDUNO', 'ORDRE_ENS']],
                      pps_public[['OBJECTID', 'CD_POSTL_GDUNO', 'ORDRE_ENS']]])
 schools['CD_POSTL_GDUNO'] = schools['CD_POSTL_GDUNO'].apply(lambda x: x[0:3])
-schools.rename(columns={'OBJECTID': 'SchoolId', 'CD_POSTL_GDUNO': 'fsa', 'ORDRE_ENS': 'Level'}, inplace=True)
+schools.rename(columns={'OBJECTID': 'SchoolId', 'CD_POSTL_GDUNO': 'FSA', 'ORDRE_ENS': 'Level'}, inplace=True)
 
 # Classify the school level into three categories: PPS (Preschool, Primary school and Secondary school),
 # Post-secondary and Professional Formation - Adult Education
@@ -185,14 +186,14 @@ def classify_school_levels(level):
 schools['SchoolType'] = schools['Level'].apply(classify_school_levels)
 
 # Count the number of establishments per category for each FSA
-schools.sort_values(by=['fsa'], inplace=True)
+schools.sort_values(by=['FSA'], inplace=True)
 # schools.reset_index(drop=True, inplace=True)
-schools = schools.groupby(['fsa', 'SchoolType']).agg(NbSchool=('SchoolId','count')).reset_index()
+schools = schools.groupby(['FSA', 'SchoolType']).agg(NbSchool=('SchoolId','count')).reset_index()
 schools.head()
 ```
 
 <!-- #region heading_collapsed=true -->
-# FSA
+# Walkscore
 <!-- #endregion -->
 
 <!-- #region hidden=true -->
@@ -210,7 +211,7 @@ ws = pd.read_csv('../data/walkscore/walkscore.csv', index_col=0)
 score = 'Walkscore' # 'Walkscore' or 'Transitscore' or 'Bikescore'
 
 nan_ws_map = folium.Map(location=[latitude, longitude], zoom_start=10)
-for lat, lng, score in zip(ws['latitude'], ws['longitude'], ws[score]):
+for lat, lng, score in zip(ws['Latitude'], ws['Longitude'], ws[score]):
     label = folium.Popup(str(score), parse_html=True)
     if np.isnan(score):
         folium.CircleMarker(
@@ -235,9 +236,31 @@ The available walkscores and bikescores can be processed but the transitscores a
 <!-- #endregion -->
 
 ```{python hidden=TRUE}
-ws_processed = ws.groupby('fsa', as_index=False).mean()
+ws_processed = ws.groupby('FSA', as_index=False).mean()
 ws_processed.drop(columns='Transitscore', inplace=True)
-ws_processed
+ws_processed.rename(columns={'Walkscore': 'WalkscoreValue',
+                             'Bikescore': 'BikescoreValue'}, inplace=True)
+
+def score_description(score, score_type):
+    description = {'Walkscore': ['Car-dependent+', 'Car-dependent', 'SomewhatWalkable',
+                                  'VeryWalkable', 'WalkersParadise'],
+                    'Bikescore': ['SomewhatBikeable', 'SomewhatBikeable', 'Bikeable',
+                                  'VeryBikeable', 'BikersParadise']}
+    if score < 25:
+        return description[score_type][0]
+    if score >= 25 and score < 50:
+        return description[score_type][1]
+    if score >= 50 and score < 70:
+        return description[score_type][2]
+    if score >= 70 and score < 90:
+        return description[score_type][3]
+    if score >= 90 and score <= 100:
+        return description[score_type][4]
+
+score_types = ['Walkscore', 'Bikescore']
+for score_type in score_types:
+    ws_processed[score_type] = ws_processed[score_type + 'Value'].apply(lambda x: score_description(x, score_type))
+ws_processed.head()
 ```
 
 <!-- #region hidden=true -->
@@ -245,16 +268,16 @@ Let's see the choropleth map of Montreal for the walkscores and bikescores:
 <!-- #endregion -->
 
 ```{python hidden=TRUE}
-score = 'Walkscore' # 'Walkscore' or 'Bikescore'
-bins = {'Walkscore': [0, 25, 50, 70, 90, 100],
-        'Bikescore': [0, 50, 70, 90, 100]}
+score = 'WalkscoreValue' # 'WalkscoreValue' or 'BikescoreValue'
+bins = {'WalkscoreValue': [0, 25, 50, 70, 90, 100],
+        'BikescoreValue': [0, 50, 70, 90, 100]}
 
 ws_map = folium.Map(location=[latitude, longitude], zoom_start=10)
 label = folium.Popup(score, parse_html=True)
 folium.Choropleth(
     geo_data=mtl_geo_json,
     data=ws_processed,
-    columns=['fsa', 'Walkscore'],
+    columns=['FSA', score],
     key_on='feature.properties.CFSAUID',
     fill_color='BuPu',
     fill_opacity=0.8, 
@@ -273,17 +296,26 @@ Walkscore:
 - 25-50: Car-dependent *(most errands require a car)*
 - 50-70: Somewhat walkable *(some errands can be accomplished on foot)*
 - 70-90: Very walkable *(most errands can be accomplished on foot)*
-- 90-100: Walker's paradize *(daily errands do not require a car)*
+- 90-100: Walker's paradise *(daily errands do not require a car)*
 
 Bikescore:
 - 0-50: Somewhat bikeable *(minimal bike infrastructure)*
 - 50-70: Bikeable *(some bike infrastructure)*
 - 70-90: Very bikeable *(biking is convenient for most trips)*
-- 90-100: Biker's paradize *(daily errands can be accomplished on a bike)*
+- 90-100: Biker's paradise *(daily errands can be accomplished on a bike)*
 <!-- #endregion -->
 
+# Creating the ultimate dataframes
+
+```{python}
+df_env = ws_processed[['FSA', 'Walkscore', 'Bikescore']]
+df = foursquare_processed[foursquare_processed['Category'] == 'KidCare'][['FSA', 'NbVenue']]
+df_env = df_env.join(df.rename(columns={'NbVenue': 'KidCare'}).set_index('FSA'), on='FSA')
+df_env['KidCare'].value_counts()
+```
+
 <!-- #region heading_collapsed=true -->
-# Cleaning FSA
+# Cleaning Walkscore
 <!-- #endregion -->
 
 ```{python hidden=TRUE}
