@@ -20,6 +20,35 @@ import folium
 ```
 
 <!-- #region heading_collapsed=true -->
+# Correspondance between 2016 and 2020 FSA
+<!-- #endregion -->
+
+<!-- #region hidden=true -->
+The FSA have evolved since the census in 2016. The main part of the FSA is similar, but some of them have changed. So, we will group them in order to have similar territories for the data from 2016 and the data from 2020.
+<!-- #endregion -->
+
+```{python hidden=TRUE}
+def process_fsa(fsa, year):
+    if year == 2020:
+        fsas = {'H3A': 'H3A-H3B', 'H3B': 'H3A-H3B',
+                'H8S': 'H8S-H8T', 'H8T': 'H8S-H8T',
+                'H9J': 'H9J-H9K', 'H9K': 'H9J-H9K',
+                'H4Y': 'H9P', 'H9P': 'H9P',
+                'H5B': 'H2Z',
+                'H5A': 'H3A-H3B', 'H4Z': 'H3A-H3B',
+                'H4R': 'H4R-H4S-H4T', 'H4S': 'H4R-H4S-H4T', 'H4T': 'H4R-H4S-H4T'}
+    if year == 2016:
+        fsas = {'H3A': 'H3A-H3B', 'H3B': 'H3A-H3B',
+                'H8S': 'H8S-H8T', 'H8T': 'H8S-H8T',
+                'H9J': 'H9J-H9K', 'H9K': 'H9J-H9K',
+                'H4R': 'H4R-H4S-H4T', 'H4S': 'H4R-H4S-H4T'}
+    if fsa in fsas:
+        return fsas[fsa]
+    else:
+        return fsa
+```
+
+<!-- #region heading_collapsed=true -->
 # Foursquare
 <!-- #endregion -->
 
@@ -101,12 +130,13 @@ def process_categories(category_name):
         category = 'Other'
 
     return 'Other'
-    
 
 foursquare['Category'] = foursquare['category_name'].apply(process_categories)
-foursquare_processed = foursquare[['FSA', 'id', 'Category']]
-foursquare_processed = foursquare_processed.groupby(['FSA', 'Category']).agg(NbVenue=('id','count')).reset_index()
-foursquare_processed.head()
+# Process the FSA to make correspondance between 2016 and 2020
+foursquare['FSA'] = foursquare['FSA'].apply(lambda x: process_fsa(x, 2020))
+# Group by categories to get the number of venues for each category per FSA
+foursquare = foursquare[['FSA', 'id', 'Category']].groupby(['FSA', 'Category']).agg(NbVenue=('id','count')).reset_index()
+foursquare.head()
 ```
 
 <!-- #region heading_collapsed=true -->
@@ -114,9 +144,13 @@ foursquare_processed.head()
 <!-- #endregion -->
 
 ```{python hidden=TRUE}
+# Read the CSV file with the metro stations per FSA
 metro_stations = pd.read_csv('../data/metro/metro_stations.csv', index_col=0)
-metro = metro_stations.groupby(['FSA']).agg(MetroStations=('Name', 'count')).reset_index()
-metro.head()
+# Process the FSA to make correspondance between 2016 and 2020
+metro_stations['FSA'] = metro_stations['FSA'].apply(lambda x: process_fsa(x, 2020))
+# Group by FSA to get the number of stations per FSA
+metro_stations = metro_stations.groupby(['FSA']).agg(MetroStations=('Name', 'count')).reset_index()
+metro_stations.head()
 ```
 
 <!-- #region heading_collapsed=true -->
@@ -184,10 +218,11 @@ def classify_school_levels(level):
     if level in ['Éducation aux adultes', 'Formation professionnelle']:
         return 'ProfessionalFormation-AdultEducation'
 schools['SchoolType'] = schools['Level'].apply(classify_school_levels)
-
-# Count the number of establishments per category for each FSA
 schools.sort_values(by=['FSA'], inplace=True)
-# schools.reset_index(drop=True, inplace=True)
+
+# Process the FSA to make correspondance between 2016 and 2020
+schools['FSA'] = schools['FSA'].apply(lambda x: process_fsa(x, 2020))
+# Group by FSA to get the number of schools (for each category) per FSA
 schools = schools.groupby(['FSA', 'SchoolType']).agg(NbSchool=('SchoolId','count')).reset_index()
 schools.head()
 ```
@@ -201,15 +236,19 @@ Let's see all the available and not available walkscores, transitscores and bike
 <!-- #endregion -->
 
 ```{python hidden=TRUE}
+# Data for Montreal
 latitude = 45.505331312
 longitude = -73.55249779
-mtl_geo_json = "../data/mtl_fsa_map.geojson"
+mtl_geo_json = "../data/maps/mtl_fsa_map.geojson"
+mtl_grp_geo_json = "../data/maps/mtl_fsa_grouped_map.geojson"
 
+# Get the walkscore data
 ws = pd.read_csv('../data/walkscore/walkscore.csv', index_col=0)
-# ws.drop(ws.columns[ws.apply(lambda col: 'Unnamed' in str(col))], axis=1, inplace=True)
 
+# Choose the score to visualize
 score = 'Walkscore' # 'Walkscore' or 'Transitscore' or 'Bikescore'
 
+# Built the map
 nan_ws_map = folium.Map(location=[latitude, longitude], zoom_start=10)
 for lat, lng, score in zip(ws['Latitude'], ws['Longitude'], ws[score]):
     label = folium.Popup(str(score), parse_html=True)
@@ -227,7 +266,6 @@ for lat, lng, score in zip(ws['Latitude'], ws['Longitude'], ws[score]):
             popup=label,
             color='blue',
             parse_html=False).add_to(nan_ws_map)
-    
 nan_ws_map
 ```
 
@@ -236,11 +274,16 @@ The available walkscores and bikescores can be processed but the transitscores a
 <!-- #endregion -->
 
 ```{python hidden=TRUE}
-ws_processed = ws.groupby('FSA', as_index=False).mean()
-ws_processed.drop(columns='Transitscore', inplace=True)
-ws_processed.rename(columns={'Walkscore': 'WalkscoreValue',
-                             'Bikescore': 'BikescoreValue'}, inplace=True)
+# Process the FSA to make correspondance between 2016 and 2020
+ws['FSA'] = ws['FSA'].apply(lambda x: process_fsa(x, 2016))
+# Get the mean score for each FSA
+walkscore = ws.groupby('FSA', as_index=False).mean()
+# Drop the transitscore because it is not relevant
+walkscore.drop(columns='Transitscore', inplace=True)
+walkscore.rename(columns={'Walkscore': 'WalkscoreValue',
+                          'Bikescore': 'BikescoreValue'}, inplace=True)
 
+# Get the description associated with the score
 def score_description(score, score_type):
     description = {'Walkscore': ['Car-dependent+', 'Car-dependent', 'SomewhatWalkable',
                                   'VeryWalkable', 'WalkersParadise'],
@@ -259,8 +302,8 @@ def score_description(score, score_type):
 
 score_types = ['Walkscore', 'Bikescore']
 for score_type in score_types:
-    ws_processed[score_type] = ws_processed[score_type + 'Value'].apply(lambda x: score_description(x, score_type))
-ws_processed.head()
+    walkscore[score_type] = walkscore[score_type + 'Value'].apply(lambda x: score_description(x, score_type))
+walkscore.head()
 ```
 
 <!-- #region hidden=true -->
@@ -275,10 +318,10 @@ bins = {'WalkscoreValue': [0, 25, 50, 70, 90, 100],
 ws_map = folium.Map(location=[latitude, longitude], zoom_start=10)
 label = folium.Popup(score, parse_html=True)
 folium.Choropleth(
-    geo_data=mtl_geo_json,
-    data=ws_processed,
+    geo_data=mtl_grp_geo_json,
+    data=walkscore,
     columns=['FSA', score],
-    key_on='feature.properties.CFSAUID',
+    key_on='feature.properties.FSAGROUP',
     fill_color='BuPu',
     fill_opacity=0.8, 
     line_opacity=0.2,
@@ -305,25 +348,30 @@ Bikescore:
 - 90-100: Biker's paradise *(daily errands can be accomplished on a bike)*
 <!-- #endregion -->
 
+<!-- #region heading_collapsed=true -->
 # Creating the master dataframes
+<!-- #endregion -->
 
-```{python}
+```{python hidden=TRUE}
 # Get the FSA with their areas to create the master dataframe for the FSA environment
 df_env = pd.read_csv('../data/fsa_areas.csv', index_col=0)
+# Process the FSA to make correspondance between 2016 and 2020
+df_env['FSA'] = df_env['FSA'].apply(lambda x: process_fsa(x, 2020))
+df_env = df_env.groupby('FSA', as_index=False).sum()
 
 # Add the walkscores and bikescores to the dataframe
-df_env = df_env.join(ws_processed[['FSA', 'Walkscore', 'Bikescore']].set_index('FSA'), on='FSA')
+df_env = df_env.join(walkscore[['FSA', 'Walkscore', 'Bikescore']].set_index('FSA'), on='FSA')
 
 # Add the foursquare venues
 categories = ['RestaurantBar', 'KidCare', 'EntertainmentCulture', 'Services', 'Sports', 'Outdoor', 'Medical', 'Religious']
 for category in categories:
-    df = foursquare_processed[foursquare_processed['Category'] == category][['FSA', 'NbVenue']]
+    df = foursquare[foursquare['Category'] == category][['FSA', 'NbVenue']]
     df_env = df_env.join(df.rename(columns={'NbVenue': category}).set_index('FSA'), on='FSA')
     # Get the density instead of the number
     df_env[category] = df_env[category] / df_env['Area(km2)']
 
 # Add the metro stations
-df_env = df_env.join(metro.set_index('FSA'), on='FSA')
+df_env = df_env.join(metro_stations.set_index('FSA'), on='FSA')
 # Get the density instead of the number
 df_env['MetroStations'] = df_env['MetroStations'] / df_env['Area(km2)']
 
@@ -336,10 +384,6 @@ for school_type in school_types:
     df_env[school_type] = df_env[school_type] / df_env['Area(km2)']
 
 df_env.round(2).head()
-```
-
-```{python}
-df_env['RestaurantBar'].round(2).unique()
 ```
 
 <!-- #region heading_collapsed=true -->
