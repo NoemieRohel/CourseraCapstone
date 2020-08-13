@@ -19,6 +19,15 @@ import json
 import folium
 ```
 
+```{python}
+test = {'value': [0.1, 0.0, 0.8, 1.4, 2.3, 1.1, 1.0, 2.0]}
+df = pd.DataFrame(test)
+bins = np.linspace(min(df['value']), max(df['value']), 4)
+group_names = ['0-1', '1-2', '2-3']
+df['value_binned'] = pd.cut(df['value'], bins, labels = group_names, include_lowest=True)
+df
+```
+
 <!-- #region heading_collapsed=true -->
 # Correspondance between 2016 and 2020 FSA
 <!-- #endregion -->
@@ -72,20 +81,14 @@ def process_categories(category_name):
         if r in str(category_name).lower() and str(category_name) not in ['Salon / Barbershop', 'Piano Bar', 'Public Art']:
             return 'RestaurantBar'
     
-    # Kids care (school, day care, playground, ...)
-    kids = ['care', 'playground']
-    for k in kids:
-        if k in str(category_name).lower():
-            return 'KidCare'
-    
     # Entertainment
     entertainment = ['museum', 'theater', 'entertainment', 'event space', 'art gallery', 'performing', 'public art',
                      'art studio', 'library', 'design', 'music venue', 'comedy', 'photography', 'sculpture',
                      'convention center', 'arcade', 'bowling', 'recreation', 'rock', 'jazz', 'concert', 'auditorium',
                      'water', 'monument', 'lighthouse', 'exhibit', 'planetarium', 'recording studio', 'memorial site',
-                     'piano', 'circus', 'zoo', 'spa', 'massage', 'casino', 'play area']
+                     'piano', 'circus', 'zoo', 'massage', 'casino', 'play area']
     for e in entertainment:
-        if e in str(category_name).lower():
+        if e in str(category_name).lower() and 'college' not in str(category_name).lower() or str(category_name) == 'Spa':
             return 'EntertainmentCulture'
     
     # Services
@@ -112,18 +115,18 @@ def process_categories(category_name):
         if o in str(category_name).lower():
             return 'Outdoor'
     
-    # Medical
-    medical = ['dentist', 'doctor', 'medical', 'hospital', 'assisted living', 'chiropractor', 'mental', 'healer',
-               'emergency', 'therapist', 'laboratory', 'acupuncturist', 'clinic']
-    for m in medical:
-        if m in str(category_name).lower():
-            return 'Medical'
+#     # Medical
+#     medical = ['dentist', 'doctor', 'medical', 'hospital', 'assisted living', 'chiropractor', 'mental', 'healer',
+#                'emergency', 'therapist', 'laboratory', 'acupuncturist', 'clinic']
+#     for m in medical:
+#         if m in str(category_name).lower():
+#             return 'Medical'
     
-    # Religious
-    religious = ['church', 'synagogue', 'temple', 'spiritual', 'mosque', 'shrine']
-    for r in religious:
-        if r in str(category_name).lower():
-            return 'Religious'
+#     # Religious
+#     religious = ['church', 'synagogue', 'temple', 'spiritual', 'mosque', 'shrine']
+#     for r in religious:
+#         if r in str(category_name).lower():
+#             return 'Religious'
     
     # All other
     if pd.isna(category_name):
@@ -151,6 +154,30 @@ metro_stations['FSA'] = metro_stations['FSA'].apply(lambda x: process_fsa(x, 202
 # Group by FSA to get the number of stations per FSA
 metro_stations = metro_stations.groupby(['FSA']).agg(MetroStations=('Name', 'count')).reset_index()
 metro_stations.head()
+```
+
+<!-- #region heading_collapsed=true -->
+# Daycare
+<!-- #endregion -->
+
+```{python hidden=TRUE}
+# Get the data from the CSV file
+daycare = pd.read_csv('../data/daycare/liste-des-services-de-garde-07.csv', engine='python')
+
+# Keep only the daycares in the Montreal island
+def mtl_fsa(postal_code):
+    if postal_code[0:2] in ['H1', 'H2', 'H3', 'H4', 'H5', 'H8', 'H9']:
+        return True
+    else:
+        return False
+daycare = daycare[daycare['CODE_POSTAL_COMPO'].apply(mtl_fsa)].reset_index(drop=True)
+daycare['FSA'] = daycare['CODE_POSTAL_COMPO'].apply(lambda x: x[0:3])
+
+# Process the FSA to make correspondance between 2016 and 2020
+daycare['FSA'] = daycare['FSA'].apply(lambda x: process_fsa(x, 2020))
+# Group by FSA to get the number of daycares per FSA
+daycare = daycare.groupby(['FSA']).agg(Daycare=('ADRESSE','count')).reset_index()
+daycare.head()
 ```
 
 <!-- #region heading_collapsed=true -->
@@ -348,11 +375,9 @@ Bikescore:
 - 90-100: Biker's paradise *(daily errands can be accomplished on a bike)*
 <!-- #endregion -->
 
-<!-- #region heading_collapsed=true -->
 # Creating the master dataframes
-<!-- #endregion -->
 
-```{python hidden=TRUE}
+```{python}
 # Get the FSA with their areas to create the master dataframe for the FSA environment
 df_env = pd.read_csv('../data/fsa_areas.csv', index_col=0)
 # Process the FSA to make correspondance between 2016 and 2020
@@ -363,27 +388,44 @@ df_env = df_env.groupby('FSA', as_index=False).sum()
 df_env = df_env.join(walkscore[['FSA', 'Walkscore', 'Bikescore']].set_index('FSA'), on='FSA')
 
 # Add the foursquare venues
-categories = ['RestaurantBar', 'KidCare', 'EntertainmentCulture', 'Services', 'Sports', 'Outdoor', 'Medical', 'Religious']
+categories = ['RestaurantBar', 'EntertainmentCulture', 'Services', 'Sports', 'Outdoor']
 for category in categories:
     df = foursquare[foursquare['Category'] == category][['FSA', 'NbVenue']]
     df_env = df_env.join(df.rename(columns={'NbVenue': category}).set_index('FSA'), on='FSA')
-    # Get the density instead of the number
+    # Get the density instead of the number for a better comparison
     df_env[category] = df_env[category] / df_env['Area(km2)']
 
 # Add the metro stations
 df_env = df_env.join(metro_stations.set_index('FSA'), on='FSA')
-# Get the density instead of the number
+# Get the density instead of the number for a better comparison
 df_env['MetroStations'] = df_env['MetroStations'] / df_env['Area(km2)']
 
+# Add the daycares
+df_env = df_env.join(daycare.set_index('FSA'), on='FSA')
+# Get the density instead of the number for a better comparison
+df_env['Daycare'] = df_env['Daycare'] / df_env['Area(km2)']
+
 # Add the schools
-school_types = ['PPS', 'PostSecondary', 'ProfessionalFormation-AdultEducation']
+school_types = ['PPS', 'PostSecondary']
 for school_type in school_types:
     df = schools[schools['SchoolType'] == school_type][['FSA', 'NbSchool']]
     df_env = df_env.join(df.rename(columns={'NbSchool': school_type}).set_index('FSA'), on='FSA')
-    # Get the density instead of the number
+    # Get the density instead of the number for a better comparison
     df_env[school_type] = df_env[school_type] / df_env['Area(km2)']
 
 df_env.round(2).head()
+```
+
+```{python}
+df_env.plot(x='FSA', y='EntertainmentCulture', kind='scatter')
+```
+
+```{python}
+df_env[(df_env['EntertainmentCulture'] > 1) & (df_env['EntertainmentCulture'] < 3)]
+```
+
+```{python}
+df_env[df_env['FSA'] == 'H2R']
 ```
 
 <!-- #region heading_collapsed=true -->
