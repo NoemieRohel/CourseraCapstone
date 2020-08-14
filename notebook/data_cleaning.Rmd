@@ -19,15 +19,6 @@ import json
 import folium
 ```
 
-```{python}
-test = {'value': [0.1, 0.0, 0.8, 1.4, 2.3, 1.1, 1.0, 2.0]}
-df = pd.DataFrame(test)
-bins = np.linspace(min(df['value']), max(df['value']), 4)
-group_names = ['0-1', '1-2', '2-3']
-df['value_binned'] = pd.cut(df['value'], bins, labels = group_names, include_lowest=True)
-df
-```
-
 <!-- #region heading_collapsed=true -->
 # Correspondance between 2016 and 2020 FSA
 <!-- #endregion -->
@@ -92,14 +83,14 @@ def process_categories(category_name):
             return 'EntertainmentCulture'
     
     # Services
-    services = ['store', 'shop', 'service', 'pharmacy', 'bank', 'bakery', 'gas station', 'government', 'bodega',
-                'salon', 'post', 'rental car', 'veterinarian', 'boutique', 'car wash', 'tattoo', 'butcher', 'real estate',
-                'auto', 'storage', 'market', 'parking', 'atm', 'lawyer', 'funeral', 'food', 'cleaner', 'embassy',
-                'driving', 'agency', 'courthouse', 'repair', 'winery', 'grocery', 'animal', 'notary', 'food stand',
-                'credit union', 'locksmith', 'laundromat', 'general travel']
-    for s in services:
-        if s in str(category_name).lower():
-            return 'Services'
+#     services = ['store', 'shop', 'service', 'pharmacy', 'bank', 'bakery', 'gas station', 'government', 'bodega',
+#                 'salon', 'post', 'rental car', 'veterinarian', 'boutique', 'car wash', 'tattoo', 'butcher', 'real estate',
+#                 'auto', 'storage', 'market', 'parking', 'atm', 'lawyer', 'funeral', 'food', 'cleaner', 'embassy',
+#                 'driving', 'agency', 'courthouse', 'repair', 'winery', 'grocery', 'animal', 'notary', 'food stand',
+#                 'credit union', 'locksmith', 'laundromat', 'general travel']
+#     for s in services:
+#         if s in str(category_name).lower():
+#             return 'Services'
     
     # Sports
     sports = ['pool', 'gym', 'sports', 'field', 'studio', 'court', 'rink', 'golf', 'arena', 'track', 'stadium',
@@ -264,8 +255,8 @@ Let's see all the available and not available walkscores, transitscores and bike
 
 ```{python hidden=TRUE}
 # Data for Montreal
-latitude = 45.505331312
-longitude = -73.55249779
+latitude = 45.535433
+longitude = -73.636493
 mtl_geo_json = "../data/maps/mtl_fsa_map.geojson"
 mtl_grp_geo_json = "../data/maps/mtl_fsa_grouped_map.geojson"
 
@@ -276,7 +267,8 @@ ws = pd.read_csv('../data/walkscore/walkscore.csv', index_col=0)
 score = 'Walkscore' # 'Walkscore' or 'Transitscore' or 'Bikescore'
 
 # Built the map
-nan_ws_map = folium.Map(location=[latitude, longitude], zoom_start=10)
+nan_ws_map = folium.Map(location=[latitude, longitude], zoom_start=10, tiles=None)
+folium.TileLayer('CartoDB positron',name="Light Map",control=False).add_to(nan_ws_map)
 for lat, lng, score in zip(ws['Latitude'], ws['Longitude'], ws[score]):
     label = folium.Popup(str(score), parse_html=True)
     if np.isnan(score):
@@ -342,15 +334,16 @@ score = 'WalkscoreValue' # 'WalkscoreValue' or 'BikescoreValue'
 bins = {'WalkscoreValue': [0, 25, 50, 70, 90, 100],
         'BikescoreValue': [0, 50, 70, 90, 100]}
 
-ws_map = folium.Map(location=[latitude, longitude], zoom_start=10)
+ws_map = folium.Map(location=[latitude, longitude], zoom_start=10, tiles=None)
+folium.TileLayer('CartoDB positron',name="Light Map",control=False).add_to(ws_map)
 label = folium.Popup(score, parse_html=True)
 folium.Choropleth(
     geo_data=mtl_grp_geo_json,
     data=walkscore,
     columns=['FSA', score],
     key_on='feature.properties.FSAGROUP',
-    fill_color='BuPu',
-    fill_opacity=0.8, 
+    fill_color='YlGnBu',
+    fill_opacity=0.7, 
     line_opacity=0.2,
     bins=bins[score],
     legend_name=score,
@@ -375,9 +368,11 @@ Bikescore:
 - 90-100: Biker's paradise *(daily errands can be accomplished on a bike)*
 <!-- #endregion -->
 
-# Creating the master dataframes
+<!-- #region heading_collapsed=true -->
+# Creating the master environment dataframe
+<!-- #endregion -->
 
-```{python}
+```{python hidden=TRUE}
 # Get the FSA with their areas to create the master dataframe for the FSA environment
 df_env = pd.read_csv('../data/fsa_areas.csv', index_col=0)
 # Process the FSA to make correspondance between 2016 and 2020
@@ -388,7 +383,7 @@ df_env = df_env.groupby('FSA', as_index=False).sum()
 df_env = df_env.join(walkscore[['FSA', 'Walkscore', 'Bikescore']].set_index('FSA'), on='FSA')
 
 # Add the foursquare venues
-categories = ['RestaurantBar', 'EntertainmentCulture', 'Services', 'Sports', 'Outdoor']
+categories = ['RestaurantBar', 'EntertainmentCulture', 'Sports', 'Outdoor']
 for category in categories:
     df = foursquare[foursquare['Category'] == category][['FSA', 'NbVenue']]
     df_env = df_env.join(df.rename(columns={'NbVenue': category}).set_index('FSA'), on='FSA')
@@ -413,19 +408,45 @@ for school_type in school_types:
     # Get the density instead of the number for a better comparison
     df_env[school_type] = df_env[school_type] / df_env['Area(km2)']
 
+# Fill the Nan values with zero
+df_env.fillna(0, inplace=True)
 df_env.round(2).head()
-```
 
-```{python}
-df_env.plot(x='FSA', y='EntertainmentCulture', kind='scatter')
-```
 
-```{python}
-df_env[(df_env['EntertainmentCulture'] > 1) & (df_env['EntertainmentCulture'] < 3)]
-```
+# Converting numerical values into categorical ones for the models
+def num_to_cat(value, category):
+    if category in ['MetroStations', 'PostSecondary']:
+        if value == 0:
+            return 'None'
+        elif value > 0 and value < 1:
+            return 'SomeInTheFSA'
+        else:
+            return 'SomeClose'
+    else:
+        thresholds = {'RestaurantBar': [0, 2, 5, 10],
+                      'EntertainmentCulture': [0, 1, 3, 6],
+                      'Sports': [0, 1, 2],
+                      'Outdoor': [0, 1, 2],
+                      'Daycare': [0, 1, 3, 6],
+                      'PPS': [0, 1, 4]}
+        values = {'RestaurantBar': ['NoneOrFew', 'Some', 'GoodChoice', 'Paradise'],
+                  'EntertainmentCulture': ['NoneOrFew', 'Some', 'GoodChoice', 'Paradise'],
+                  'Sports': ['NoneOrFew', 'Some', 'Choice'],
+                  'Outdoor': ['NoneOrFew', 'Some', 'Paradise'],
+                  'Daycare': ['NoneOrFew', 'Some', 'GoodChoice', 'Paradise'],
+                  'PPS': ['NoneOrFew', 'Some', 'Choice']}
+        for i in range(len(thresholds[category])):
+            if i + 1 < len(thresholds[category]):
+                if value >= thresholds[category][i] and value < thresholds[category][i+1]:
+                    return values[category][i]
+            else:
+                if value >= thresholds[category][i]:
+                    return values[category][i]
 
-```{python}
-df_env[df_env['FSA'] == 'H2R']
+categories = ['RestaurantBar', 'EntertainmentCulture', 'Sports', 'Outdoor', 'MetroStations', 'Daycare', 'PPS', 'PostSecondary']
+for category in categories:
+    df_env[category] = df_env[category].apply(lambda x: num_to_cat(x, category))
+df_env.head()
 ```
 
 <!-- #region heading_collapsed=true -->
