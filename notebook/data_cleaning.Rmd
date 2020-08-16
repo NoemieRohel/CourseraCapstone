@@ -385,8 +385,8 @@ df_env = df_env.join(walkscore[['FSA', 'Walkscore', 'Bikescore']].set_index('FSA
 # Add the foursquare venues
 categories = ['RestaurantBar', 'EntertainmentCulture', 'Sports', 'Outdoor']
 for category in categories:
-    df = foursquare[foursquare['Category'] == category][['FSA', 'NbVenue']]
-    df_env = df_env.join(df.rename(columns={'NbVenue': category}).set_index('FSA'), on='FSA')
+    df_temp = foursquare[foursquare['Category'] == category][['FSA', 'NbVenue']]
+    df_env = df_env.join(df_temp.rename(columns={'NbVenue': category}).set_index('FSA'), on='FSA')
     # Get the density instead of the number for a better comparison
     df_env[category] = df_env[category] / df_env['Area(km2)']
 
@@ -403,14 +403,13 @@ df_env['Daycare'] = df_env['Daycare'] / df_env['Area(km2)']
 # Add the schools
 school_types = ['PPS', 'PostSecondary']
 for school_type in school_types:
-    df = schools[schools['SchoolType'] == school_type][['FSA', 'NbSchool']]
-    df_env = df_env.join(df.rename(columns={'NbSchool': school_type}).set_index('FSA'), on='FSA')
+    df_temp = schools[schools['SchoolType'] == school_type][['FSA', 'NbSchool']]
+    df_env = df_env.join(df_temp.rename(columns={'NbSchool': school_type}).set_index('FSA'), on='FSA')
     # Get the density instead of the number for a better comparison
     df_env[school_type] = df_env[school_type] / df_env['Area(km2)']
 
 # Fill the Nan values with zero
 df_env.fillna(0, inplace=True)
-df_env.round(2).head()
 
 
 # Converting numerical values into categorical ones for the models
@@ -423,30 +422,82 @@ def num_to_cat(value, category):
         else:
             return 'SomeClose'
     else:
-        thresholds = {'RestaurantBar': [0, 2, 5, 10],
-                      'EntertainmentCulture': [0, 1, 3, 6],
-                      'Sports': [0, 1, 2],
-                      'Outdoor': [0, 1, 2],
-                      'Daycare': [0, 1, 3, 6],
-                      'PPS': [0, 1, 4]}
-        values = {'RestaurantBar': ['NoneOrFew', 'Some', 'GoodChoice', 'Paradise'],
-                  'EntertainmentCulture': ['NoneOrFew', 'Some', 'GoodChoice', 'Paradise'],
-                  'Sports': ['NoneOrFew', 'Some', 'Choice'],
-                  'Outdoor': ['NoneOrFew', 'Some', 'Paradise'],
-                  'Daycare': ['NoneOrFew', 'Some', 'GoodChoice', 'Paradise'],
-                  'PPS': ['NoneOrFew', 'Some', 'Choice']}
-        for i in range(len(thresholds[category])):
-            if i + 1 < len(thresholds[category]):
-                if value >= thresholds[category][i] and value < thresholds[category][i+1]:
-                    return values[category][i]
+        thresholds = {'RestaurantBar': [[0, 2, 5, 10], ['NoneOrFew', 'Some', 'GoodChoice', 'Paradise']],
+                      'EntertainmentCulture': [[0, 1, 3, 6], ['NoneOrFew', 'Some', 'GoodChoice', 'Paradise']],
+                      'Sports': [[0, 1, 2], ['NoneOrFew', 'Some', 'Choice']],
+                      'Outdoor': [[0, 1, 2], ['NoneOrFew', 'Some', 'Paradise']],
+                      'Daycare': [[0, 1, 3, 6], ['NoneOrFew', 'Some', 'GoodChoice', 'Paradise']],
+                      'PPS': [[0, 1, 4], ['NoneOrFew', 'Some', 'Choice']]}
+        for i in range(len(thresholds[category][0])):
+            if i + 1 < len(thresholds[category][0]):
+                if value >= thresholds[category][0][i] and value < thresholds[category][0][i+1]:
+                    return thresholds[category][1][i]
             else:
-                if value >= thresholds[category][i]:
-                    return values[category][i]
+                if value >= thresholds[category][0][i]:
+                    return thresholds[category][1][i]
 
 categories = ['RestaurantBar', 'EntertainmentCulture', 'Sports', 'Outdoor', 'MetroStations', 'Daycare', 'PPS', 'PostSecondary']
 for category in categories:
     df_env[category] = df_env[category].apply(lambda x: num_to_cat(x, category))
 df_env.head()
+```
+
+<!-- #region heading_collapsed=true -->
+# Creating the master population dataframe
+<!-- #endregion -->
+
+```{python hidden=TRUE}
+# Get the FSA with their areas to create the master dataframe for the FSA population
+df_pop = pd.read_csv('../data/fsa_areas.csv', index_col=0)
+# Process the FSA to make correspondance between 2016 and 2020
+df_pop['FSA'] = df_pop['FSA'].apply(lambda x: process_fsa(x, 2020))
+df_pop = df_pop.groupby('FSA', as_index=False).sum()
+
+# Get the census data
+census = pd.read_csv('../data/census/census_20200808_1501.csv', index_col=0)
+for fsa in ['H4T', 'H4Y', 'H4Z', 'H5A', 'H5B']:
+    census = census[census['FSA'] != fsa]
+# Process the FSA to make correspondance between 2016 and 2020
+census['FSA'] = census['FSA'].apply(lambda x: process_fsa(x, 2016))
+
+# Get the fields we are interested in for the population dataframe
+# Population, Age, Income
+fields = {'Population': '1.1.1',
+          'MedianAge': '1.2.4',
+          'MedianIncome': '4.1.1.1.1'}
+for field in fields:
+    df_temp = census[census['CategoryHierId'] == fields[field]][['FSA', 'CategoryValue']].groupby('FSA', as_index=False).sum()
+    df_pop = df_pop.join(df_temp.rename(columns={'CategoryValue': field}).set_index('FSA'), on='FSA')
+# Get the density of population instead of the number for a better comparison
+df_pop['Population'] = df_pop['Population'] / df_pop['Area(km2)']
+
+# Types of families
+df_temp = census[census['TypeHierId'] == '2.3.4.1'][['FSA', 'TypeValue']].rename(
+    columns={'TypeValue': 'CouplesNoChildren'}).groupby('FSA', as_index=False).sum()
+fields = {'CouplesWithChildren': ['2.3.4.2', 'TypeValue'],
+          'LoneWithChildren': ['2.3.5.1', 'CategoryValue'],
+          'OnePerson': ['2.4.1.3.1', 'TypeValue'],
+          'MultipleNoFamily': ['2.4.1.3.2', 'TypeValue']}
+for field in fields:
+    df_tmp = census[census['TypeHierId'] == fields[field][0]][['FSA', fields[field][1]]].rename(
+        columns={fields[field][1]: field}).groupby('FSA', as_index=False).sum()
+    df_temp = df_temp.join(df_tmp.set_index('FSA'), on='FSA')
+df_temp['FamiliesWithChildren'] = df_temp['CouplesWithChildren'] + df_temp['LoneWithChildren']
+df_temp.drop(columns=['CouplesWithChildren', 'LoneWithChildren'], inplace=True)
+df_temp['Total'] = df_temp.sum(axis=1)
+for column in df_temp.set_index('FSA').columns:
+    df_temp[column] = (df_temp[column] / df_temp['Total']) * 100
+    df_temp = df_temp.rename(columns={column: column + '(%)'})
+df_temp.drop(columns=['Total(%)'], inplace=True)
+df_pop = df_pop.join(df_temp.set_index('FSA'), on='FSA')
+
+df_pop.round(2).head()
+```
+
+# Creating the master housing dataframe
+
+```{python}
+
 ```
 
 <!-- #region heading_collapsed=true -->
