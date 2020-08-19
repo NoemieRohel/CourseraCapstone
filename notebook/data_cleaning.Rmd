@@ -17,6 +17,9 @@ import pandas as pd
 import numpy as np
 import json
 import folium
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+import matplotlib.pyplot as plt
 ```
 
 <!-- #region heading_collapsed=true -->
@@ -368,8 +371,23 @@ Bikescore:
 - 90-100: Biker's paradise *(daily errands can be accomplished on a bike)*
 <!-- #endregion -->
 
+# Creating the master dataframes
+
+```{python}
+# Get the average of a column, ponderated by another
+def ponderated_average(df, df_pond, field):
+    df = df.join(df_pond.set_index('FSA'), on='FSA')
+    d1 = df.drop_duplicates(subset=['FSA'], keep=('first'))
+    d2 = df.drop_duplicates(subset=['FSA'], keep=('last'))
+    df = pd.concat([d1,d2]).drop_duplicates()
+    df['Product'] = df[field] * df['Ponderator']
+    df = df.groupby('FSA', as_index=False).sum()
+    df[field] = df['Product'] / df['Ponderator']
+    return df[['FSA', field]]
+```
+
 <!-- #region heading_collapsed=true -->
-# Creating the master environment dataframe
+## Environment dataframe
 <!-- #endregion -->
 
 ```{python hidden=TRUE}
@@ -381,6 +399,17 @@ df_env = df_env.groupby('FSA', as_index=False).sum()
 
 # Add the walkscores and bikescores to the dataframe
 df_env = df_env.join(walkscore[['FSA', 'Walkscore', 'Bikescore']].set_index('FSA'), on='FSA')
+# We can't cluster categorical features so let's turn them into numerical ones
+df_env['Walkscore'] = df_env['Walkscore'].replace({'Car-dependent+': 0,
+                                                   'Car-dependent': 1,
+                                                   'SomewhatWalkable': 2,
+                                                   'VeryWalkable': 3,
+                                                   'WalkersParadise': 4})
+df_env['Bikescore'] = df_env['Bikescore'].replace({'SomewhatBikeable': 0,
+                                                   'SomewhatBikeable': 1,
+                                                   'Bikeable': 2,
+                                                   'VeryBikeable': 3,
+                                                   'BikersParadise': 4})
 
 # Add the foursquare venues
 categories = ['RestaurantBar', 'EntertainmentCulture', 'Sports', 'Outdoor']
@@ -412,38 +441,40 @@ for school_type in school_types:
 df_env.fillna(0, inplace=True)
 
 
-# Converting numerical values into categorical ones for the models
-def num_to_cat(value, category):
-    if category in ['MetroStations', 'PostSecondary']:
-        if value == 0:
-            return 'None'
-        elif value > 0 and value < 1:
-            return 'SomeInTheFSA'
-        else:
-            return 'SomeClose'
-    else:
-        thresholds = {'RestaurantBar': [[0, 2, 5, 10], ['NoneOrFew', 'Some', 'GoodChoice', 'Paradise']],
-                      'EntertainmentCulture': [[0, 1, 3, 6], ['NoneOrFew', 'Some', 'GoodChoice', 'Paradise']],
-                      'Sports': [[0, 1, 2], ['NoneOrFew', 'Some', 'Choice']],
-                      'Outdoor': [[0, 1, 2], ['NoneOrFew', 'Some', 'Paradise']],
-                      'Daycare': [[0, 1, 3, 6], ['NoneOrFew', 'Some', 'GoodChoice', 'Paradise']],
-                      'PPS': [[0, 1, 4], ['NoneOrFew', 'Some', 'Choice']]}
-        for i in range(len(thresholds[category][0])):
-            if i + 1 < len(thresholds[category][0]):
-                if value >= thresholds[category][0][i] and value < thresholds[category][0][i+1]:
-                    return thresholds[category][1][i]
-            else:
-                if value >= thresholds[category][0][i]:
-                    return thresholds[category][1][i]
+# # Converting numerical values into categorical ones for the models
+# def num_to_cat(value, category):
+#     if category in ['MetroStations', 'PostSecondary']:
+#         if value == 0:
+#             return 'None'
+#         elif value > 0 and value < 1:
+#             return 'SomeInTheFSA'
+#         else:
+#             return 'SomeClose'
+#     else:
+#         thresholds = {'RestaurantBar': [[0, 2, 5, 10], ['NoneOrFew', 'Some', 'GoodChoice', 'Paradise']],
+#                       'EntertainmentCulture': [[0, 1, 3, 6], ['NoneOrFew', 'Some', 'GoodChoice', 'Paradise']],
+#                       'Sports': [[0, 1, 2], ['NoneOrFew', 'Some', 'Choice']],
+#                       'Outdoor': [[0, 1, 2], ['NoneOrFew', 'Some', 'Paradise']],
+#                       'Daycare': [[0, 1, 3, 6], ['NoneOrFew', 'Some', 'GoodChoice', 'Paradise']],
+#                       'PPS': [[0, 1, 4], ['NoneOrFew', 'Some', 'Choice']]}
+#         for i in range(len(thresholds[category][0])):
+#             if i + 1 < len(thresholds[category][0]):
+#                 if value >= thresholds[category][0][i] and value < thresholds[category][0][i+1]:
+#                     return thresholds[category][1][i]
+#             else:
+#                 if value >= thresholds[category][0][i]:
+#                     return thresholds[category][1][i]
 
-categories = ['RestaurantBar', 'EntertainmentCulture', 'Sports', 'Outdoor', 'MetroStations', 'Daycare', 'PPS', 'PostSecondary']
-for category in categories:
-    df_env[category] = df_env[category].apply(lambda x: num_to_cat(x, category))
-df_env.head()
+# categories = ['RestaurantBar', 'EntertainmentCulture', 'Sports', 'Outdoor', 'MetroStations', 'Daycare', 'PPS', 'PostSecondary']
+# for category in categories:
+#     df_env[category] = df_env[category].apply(lambda x: num_to_cat(x, category))
+
+df_env.drop(columns=['Area(km2)'], inplace=True)
+df_env.round(2).head()
 ```
 
 <!-- #region heading_collapsed=true -->
-# Creating the master population dataframe
+## Population dataframe
 <!-- #endregion -->
 
 ```{python hidden=TRUE}
@@ -461,15 +492,23 @@ for fsa in ['H4T', 'H4Y', 'H4Z', 'H5A', 'H5B']:
 census['FSA'] = census['FSA'].apply(lambda x: process_fsa(x, 2016))
 
 # Get the fields we are interested in for the population dataframe
-# Population, Age, Income
-fields = {'Population': '1.1.1',
-          'Age': '1.2.4',
-          'Income': '4.1.1.1.1'}
-for field in fields:
-    df_temp = census[census['CategoryHierId'] == fields[field]][['FSA', 'CategoryValue']].groupby('FSA', as_index=False).sum()
-    df_pop = df_pop.join(df_temp.rename(columns={'CategoryValue': field}).set_index('FSA'), on='FSA')
+# Population
+df_temp = census[census['CategoryHierId'] == '1.1.1'][['FSA', 'CategoryValue']].groupby('FSA', as_index=False).sum()
+df_pop = df_pop.join(df_temp.rename(columns={'CategoryValue': 'Population'}).set_index('FSA'), on='FSA')
 # Get the density of population instead of the number for a better comparison
 df_pop['Population'] = df_pop['Population'] / df_pop['Area(km2)']
+
+# Age, Income
+fields = {'Age': '1.2.4',
+          'Income': '4.1.1.1.1'}
+for field in fields:
+    # for grouped FSA: take the average, ponderated by the population of the FSA
+    df_temp = census[census['CategoryHierId'] == fields[field]][['FSA', 'CategoryValue']].rename(
+        columns={'CategoryValue': field})
+    df_pond = census[census['CategoryHierId'] == '1.1.1'][['FSA', 'CategoryValue']].rename(
+        columns={'CategoryValue': 'Ponderator'})
+    df_temp = ponderated_average(df_temp, df_pond, field)
+    df_pop = df_pop.join(df_temp.set_index('FSA'), on='FSA')
 
 # Types of families
 df_temp = census[census['TypeHierId'] == '2.3.4.1'][['FSA', 'TypeValue']].rename(
@@ -494,15 +533,12 @@ df_pop = df_pop.join(df_temp[['FSA',
                               'OnePerson(%)',
                               'MultipleNoFamily(%)']].set_index('FSA'), on='FSA')
 
+df_pop.drop(columns=['Area(km2)'], inplace=True)
 df_pop.round(2).head()
 ```
 
-```{python hidden=TRUE}
-df_pop.round(0).plot(x='FSA', y='Population', kind='scatter')
-```
-
 <!-- #region heading_collapsed=true -->
-# Creating the master housing dataframe
+## Housing dataframe
 <!-- #endregion -->
 
 ```{python hidden=TRUE}
@@ -520,20 +556,24 @@ for fsa in ['H4T', 'H4Y', 'H4Z', 'H5A', 'H5B']:
 census['FSA'] = census['FSA'].apply(lambda x: process_fsa(x, 2016))
 
 # Get the fields we are interested in for the population dataframe
-# Value and average number of rooms
-fields = {'Value($)': '9.1.13.5',
-          'NbRooms': '9.1.5'}
-for field in fields:
-    df_temp = census[census['CategoryHierId'] == fields[field]][['FSA', 'CategoryValue']].groupby(
-        'FSA', as_index=False).mean()
-    df_hous = df_hous.join(df_temp.rename(columns={'CategoryValue': field}).set_index('FSA'), on='FSA')
-
 # Number of dwellings
 df_temp = census[census['TypeHierId'] == '2.1.1.1'][['FSA', 'CategoryValue']].groupby(
     'FSA', as_index=False).sum()
 df_hous = df_hous.join(df_temp.rename(columns={'CategoryValue': 'NbDwellings'}).set_index('FSA'), on='FSA')
 # Get the density of dwellings instead of the number for better comparison
 df_hous['NbDwellings'] = df_hous['NbDwellings'] / df_hous['Area(km2)']
+
+# Value and average number of rooms
+fields = {'Value($)': '9.1.13.5',
+          'NbRooms': '9.1.5'}
+for field in fields:
+    # for grouped FSA: take the average, ponderated by the number of dwellings of the FSA
+    df_temp = census[census['CategoryHierId'] == fields[field]][['FSA', 'CategoryValue']].rename(
+        columns={'CategoryValue': field})
+    df_pond = census[census['TypeHierId'] == '2.1.1.1'][['FSA', 'CategoryValue']].rename(
+        columns={'CategoryValue': 'Ponderator'})
+    df_temp = ponderated_average(df_temp, df_pond, field)
+    df_hous = df_hous.join(df_temp.set_index('FSA'), on='FSA')
 
 # Tenure
 df_temp = census[census['TypeHierId'] == '9.1.1.2'][['FSA', 'TypeValue']].rename(
@@ -598,13 +638,31 @@ df_hous = df_hous.join(df_temp[['FSA',
                                 'Old(%)']].set_index('FSA'), on='FSA')
 
 
+df_hous.drop(columns=['Area(km2)'], inplace=True)
 df_hous.round(2).head()
 ```
 
-```{python hidden=TRUE}
-df_hous.round(1).plot(x='FSA', y='NbRooms', kind='scatter')
+# Tests for clustering
+
+```{python}
+K = range(1, 15)
+inertias = []
+for k in K:
+    kmeans = KMeans(n_clusters=k).fit(df_pop.set_index('FSA'))
+    inertias.append(kmeans.inertia_)
+plt.plot(K, inertias, '-')
 ```
 
-```{python hidden=TRUE}
+```{python}
+kmean = KMeans(n_clusters=3).fit(df_pop.set_index('FSA'))
+df_pop.insert(1, 'Cluster', kmeans.labels_)
+kmean.labels_
+```
+
+```{python}
+df_pop[df_pop['Cluster'] == 2]
+```
+
+```{python}
 
 ```
