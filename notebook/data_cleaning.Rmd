@@ -20,10 +20,15 @@ import folium
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
+from yellowbrick.cluster import KElbowVisualizer
 ```
 
 <!-- #region heading_collapsed=true -->
-# Correspondance between 2016 and 2020 FSA
+# Getting and cleaning the data
+<!-- #endregion -->
+
+<!-- #region heading_collapsed=true hidden=true -->
+## Correspondance between 2016 and 2020 FSA
 <!-- #endregion -->
 
 <!-- #region hidden=true -->
@@ -51,8 +56,8 @@ def process_fsa(fsa, year):
         return fsa
 ```
 
-<!-- #region heading_collapsed=true -->
-# Foursquare
+<!-- #region heading_collapsed=true hidden=true -->
+## Foursquare
 <!-- #endregion -->
 
 ```{python hidden=TRUE}
@@ -136,8 +141,8 @@ foursquare = foursquare[['FSA', 'id', 'Category']].groupby(['FSA', 'Category']).
 foursquare.head()
 ```
 
-<!-- #region heading_collapsed=true -->
-# STM
+<!-- #region heading_collapsed=true hidden=true -->
+## STM
 <!-- #endregion -->
 
 ```{python hidden=TRUE}
@@ -150,8 +155,8 @@ metro_stations = metro_stations.groupby(['FSA']).agg(MetroStations=('Name', 'cou
 metro_stations.head()
 ```
 
-<!-- #region heading_collapsed=true -->
-# Daycare
+<!-- #region heading_collapsed=true hidden=true -->
+## Daycare
 <!-- #endregion -->
 
 ```{python hidden=TRUE}
@@ -174,8 +179,8 @@ daycare = daycare.groupby(['FSA']).agg(Daycare=('ADRESSE','count')).reset_index(
 daycare.head()
 ```
 
-<!-- #region heading_collapsed=true -->
-# Schools
+<!-- #region heading_collapsed=true hidden=true -->
+## Schools
 <!-- #endregion -->
 
 ```{python hidden=TRUE}
@@ -248,8 +253,8 @@ schools = schools.groupby(['FSA', 'SchoolType']).agg(NbSchool=('SchoolId','count
 schools.head()
 ```
 
-<!-- #region heading_collapsed=true -->
-# Walkscore
+<!-- #region heading_collapsed=true hidden=true -->
+## Walkscore
 <!-- #endregion -->
 
 <!-- #region hidden=true -->
@@ -302,29 +307,29 @@ ws['FSA'] = ws['FSA'].apply(lambda x: process_fsa(x, 2016))
 walkscore = ws.groupby('FSA', as_index=False).mean()
 # Drop the transitscore because it is not relevant
 walkscore.drop(columns='Transitscore', inplace=True)
-walkscore.rename(columns={'Walkscore': 'WalkscoreValue',
-                          'Bikescore': 'BikescoreValue'}, inplace=True)
 
-# Get the description associated with the score
-def score_description(score, score_type):
-    description = {'Walkscore': ['Car-dependent+', 'Car-dependent', 'SomewhatWalkable',
-                                  'VeryWalkable', 'WalkersParadise'],
-                    'Bikescore': ['SomewhatBikeable', 'SomewhatBikeable', 'Bikeable',
-                                  'VeryBikeable', 'BikersParadise']}
-    if score < 25:
-        return description[score_type][0]
-    if score >= 25 and score < 50:
-        return description[score_type][1]
-    if score >= 50 and score < 70:
-        return description[score_type][2]
-    if score >= 70 and score < 90:
-        return description[score_type][3]
-    if score >= 90 and score <= 100:
-        return description[score_type][4]
+# # Get the description associated with the score
+# def score_description(score, score_type):
+#     description = {'Walkscore': ['Car-dependent+', 'Car-dependent', 'SomewhatWalkable',
+#                                   'VeryWalkable', 'WalkersParadise'],
+#                     'Bikescore': ['SomewhatBikeable', 'SomewhatBikeable', 'Bikeable',
+#                                   'VeryBikeable', 'BikersParadise']}
+#     if score < 25:
+#         return description[score_type][0]
+#     if score >= 25 and score < 50:
+#         return description[score_type][1]
+#     if score >= 50 and score < 70:
+#         return description[score_type][2]
+#     if score >= 70 and score < 90:
+#         return description[score_type][3]
+#     if score >= 90 and score <= 100:
+#         return description[score_type][4]
 
-score_types = ['Walkscore', 'Bikescore']
-for score_type in score_types:
-    walkscore[score_type] = walkscore[score_type + 'Value'].apply(lambda x: score_description(x, score_type))
+# walkscore.rename(columns={'Walkscore': 'WalkscoreValue',
+#                           'Bikescore': 'BikescoreValue'}, inplace=True)
+# score_types = ['Walkscore', 'Bikescore']
+# for score_type in score_types:
+#     walkscore[score_type] = walkscore[score_type + 'Value'].apply(lambda x: score_description(x, score_type))
 walkscore.head()
 ```
 
@@ -333,9 +338,9 @@ Let's see the choropleth map of Montreal for the walkscores and bikescores:
 <!-- #endregion -->
 
 ```{python hidden=TRUE}
-score = 'WalkscoreValue' # 'WalkscoreValue' or 'BikescoreValue'
-bins = {'WalkscoreValue': [0, 25, 50, 70, 90, 100],
-        'BikescoreValue': [0, 50, 70, 90, 100]}
+score = 'Walkscore' # 'Walkscore' or 'Bikescore'
+bins = {'Walkscore': [0, 25, 50, 70, 90, 100],
+        'Bikescore': [0, 50, 70, 90, 100]}
 
 ws_map = folium.Map(location=[latitude, longitude], zoom_start=10, tiles=None)
 folium.TileLayer('CartoDB positron',name="Light Map",control=False).add_to(ws_map)
@@ -371,9 +376,11 @@ Bikescore:
 - 90-100: Biker's paradise *(daily errands can be accomplished on a bike)*
 <!-- #endregion -->
 
+<!-- #region heading_collapsed=true -->
 # Creating the master dataframes
+<!-- #endregion -->
 
-```{python}
+```{python hidden=TRUE}
 # Get the average of a column, ponderated by another
 def ponderated_average(df, df_pond, field):
     df = df.join(df_pond.set_index('FSA'), on='FSA')
@@ -386,7 +393,7 @@ def ponderated_average(df, df_pond, field):
     return df[['FSA', field]]
 ```
 
-<!-- #region heading_collapsed=true -->
+<!-- #region heading_collapsed=true hidden=true -->
 ## Environment dataframe
 <!-- #endregion -->
 
@@ -399,17 +406,17 @@ df_env = df_env.groupby('FSA', as_index=False).sum()
 
 # Add the walkscores and bikescores to the dataframe
 df_env = df_env.join(walkscore[['FSA', 'Walkscore', 'Bikescore']].set_index('FSA'), on='FSA')
-# We can't cluster categorical features so let's turn them into numerical ones
-df_env['Walkscore'] = df_env['Walkscore'].replace({'Car-dependent+': 0,
-                                                   'Car-dependent': 1,
-                                                   'SomewhatWalkable': 2,
-                                                   'VeryWalkable': 3,
-                                                   'WalkersParadise': 4})
-df_env['Bikescore'] = df_env['Bikescore'].replace({'SomewhatBikeable': 0,
-                                                   'SomewhatBikeable': 1,
-                                                   'Bikeable': 2,
-                                                   'VeryBikeable': 3,
-                                                   'BikersParadise': 4})
+# # We can't cluster categorical features so let's turn them into numerical ones
+# df_env['Walkscore'] = df_env['Walkscore'].replace({'Car-dependent+': 0,
+#                                                    'Car-dependent': 1,
+#                                                    'SomewhatWalkable': 2,
+#                                                    'VeryWalkable': 3,
+#                                                    'WalkersParadise': 4})
+# df_env['Bikescore'] = df_env['Bikescore'].replace({'SomewhatBikeable': 0,
+#                                                    'SomewhatBikeable': 1,
+#                                                    'Bikeable': 2,
+#                                                    'VeryBikeable': 3,
+#                                                    'BikersParadise': 4})
 
 # Add the foursquare venues
 categories = ['RestaurantBar', 'EntertainmentCulture', 'Sports', 'Outdoor']
@@ -473,7 +480,7 @@ df_env.drop(columns=['Area(km2)'], inplace=True)
 df_env.round(2).head()
 ```
 
-<!-- #region heading_collapsed=true -->
+<!-- #region heading_collapsed=true hidden=true -->
 ## Population dataframe
 <!-- #endregion -->
 
@@ -537,7 +544,7 @@ df_pop.drop(columns=['Area(km2)'], inplace=True)
 df_pop.round(2).head()
 ```
 
-<!-- #region heading_collapsed=true -->
+<!-- #region heading_collapsed=true hidden=true -->
 ## Housing dataframe
 <!-- #endregion -->
 
@@ -642,27 +649,53 @@ df_hous.drop(columns=['Area(km2)'], inplace=True)
 df_hous.round(2).head()
 ```
 
-# Tests for clustering
+# Clustering
 
 ```{python}
-K = range(1, 15)
+# Data scaling
+X_env = StandardScaler().fit_transform(df_env.set_index('FSA'))
+X_pop = StandardScaler().fit_transform(df_pop.set_index('FSA'))
+X_hous = StandardScaler().fit_transform(df_hous.set_index('FSA'))
+
+# Get the optimal number of clusters for KMeans using the elbow method
+k_env = 0
+k_pop = 0
+k_hous = 0
+datas = {'Environment': [df_env, X_env, k_env],
+         'Population': [df_pop, X_pop, k_pop],
+         'Housing': [df_hous, X_hous, k_hous]}
+for data in datas:
+    visualizer = KElbowVisualizer(KMeans(), k=(1,15), timings=False)
+    visualizer.fit(datas[data][1])
+    datas[data][2] = visualizer.elbow_value_
+    print(data)
+    visualizer.show()
+```
+
+```{python}
+# Run the kmeans
+for data in datas:
+    k_means = KMeans(n_clusters=datas[data][2], init='k-means++', n_init=20).fit(datas[data][1])
+    datas[data][0]['Cluster'] = k_means.labels_
+```
+
+```{python}
+df_env['Cluster'].value_counts()
+```
+
+<!-- #region heading_collapsed=true -->
+# Tests
+<!-- #endregion -->
+
+```{python hidden=TRUE}
+K = range(1,15)
 inertias = []
 for k in K:
-    kmeans = KMeans(n_clusters=k).fit(df_pop.set_index('FSA'))
-    inertias.append(kmeans.inertia_)
-plt.plot(K, inertias, '-')
+    k_means = KMeans(n_clusters=k).fit(X_env)
+    inertias.append(k_means.inertia_)
+plt.plot(K, inertias, 'o-')
 ```
 
-```{python}
-kmean = KMeans(n_clusters=3).fit(df_pop.set_index('FSA'))
-df_pop.insert(1, 'Cluster', kmeans.labels_)
-kmean.labels_
-```
-
-```{python}
-df_pop[df_pop['Cluster'] == 2]
-```
-
-```{python}
+```{python hidden=TRUE}
 
 ```
