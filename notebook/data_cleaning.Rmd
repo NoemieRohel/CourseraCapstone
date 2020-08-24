@@ -19,6 +19,7 @@ import json
 import folium
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
+from sklearn import metrics
 import matplotlib.pyplot as plt
 from yellowbrick.cluster import KElbowVisualizer
 ```
@@ -376,11 +377,9 @@ Bikescore:
 - 90-100: Biker's paradise *(daily errands can be accomplished on a bike)*
 <!-- #endregion -->
 
-<!-- #region heading_collapsed=true -->
 # Creating the master dataframes
-<!-- #endregion -->
 
-```{python hidden=TRUE}
+```{python}
 # Get the average of a column, ponderated by another
 def ponderated_average(df, df_pond, field):
     df = df.join(df_pond.set_index('FSA'), on='FSA')
@@ -393,7 +392,7 @@ def ponderated_average(df, df_pond, field):
     return df[['FSA', field]]
 ```
 
-<!-- #region heading_collapsed=true hidden=true -->
+<!-- #region heading_collapsed=true -->
 ## Environment dataframe
 <!-- #endregion -->
 
@@ -480,7 +479,7 @@ df_env.drop(columns=['Area(km2)'], inplace=True)
 df_env.round(2).head()
 ```
 
-<!-- #region heading_collapsed=true hidden=true -->
+<!-- #region heading_collapsed=true -->
 ## Population dataframe
 <!-- #endregion -->
 
@@ -544,7 +543,7 @@ df_pop.drop(columns=['Area(km2)'], inplace=True)
 df_pop.round(2).head()
 ```
 
-<!-- #region heading_collapsed=true hidden=true -->
+<!-- #region heading_collapsed=true -->
 ## Housing dataframe
 <!-- #endregion -->
 
@@ -652,6 +651,7 @@ df_hous.round(2).head()
 # Clustering
 
 ```{python}
+# df_env.drop(columns=['PostSecondary'], inplace=True)
 # Data scaling
 X_env = StandardScaler().fit_transform(df_env.set_index('FSA'))
 X_pop = StandardScaler().fit_transform(df_pop.set_index('FSA'))
@@ -673,14 +673,33 @@ for data in datas:
 ```
 
 ```{python}
-# Run the kmeans
+# Run the kmeans model for each dataframe
+inertias_kmeans = {}
+silhouettes_kmeans = {}
+calinskis_kmeans = {}
 for data in datas:
-    k_means = KMeans(n_clusters=datas[data][2], init='k-means++', n_init=20).fit(datas[data][1])
-    datas[data][0]['Cluster'] = k_means.labels_
+    kmeans = KMeans(n_clusters=datas[data][2], init='k-means++', n_init=20).fit(datas[data][1])
+    datas[data][0]['Cluster_kmeans'] = kmeans.labels_
+    # Metrics
+    inertias_kmeans[data] = kmeans.inertia_
+    silhouettes_kmeans[data] = metrics.silhouette_score(datas[data][1], kmeans.labels_, metric='euclidean')
+    calinskis_kmeans[data] = metrics.calinski_harabasz_score(datas[data][1], kmeans.labels_)
 ```
 
 ```{python}
-df_env['Cluster'].value_counts()
+inertias_kmeans
+```
+
+```{python}
+silhouettes_kmeans
+```
+
+```{python}
+calinskis_kmeans
+```
+
+```{python}
+df_env['Cluster_kmeans'].value_counts()
 ```
 
 <!-- #region heading_collapsed=true -->
