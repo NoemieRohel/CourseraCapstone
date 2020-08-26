@@ -17,11 +17,12 @@ import pandas as pd
 import numpy as np
 import json
 import folium
-from sklearn.cluster import KMeans
+from sklearn.cluster import KMeans, DBSCAN, AgglomerativeClustering
 from sklearn.preprocessing import StandardScaler
 from sklearn import metrics
 import matplotlib.pyplot as plt
 from yellowbrick.cluster import KElbowVisualizer
+from sklearn.neighbors import NearestNeighbors
 ```
 
 <!-- #region heading_collapsed=true -->
@@ -630,18 +631,16 @@ for field in fields:
     df_tmp = census[census['TypeHierId'] == fields[field]][['FSA', 'TypeValue']].rename(
         columns={'TypeValue': field}).groupby('FSA', as_index=False).sum()
     df_temp = df_temp.join(df_tmp.set_index('FSA'), on='FSA')
-df_temp['Recent'] = df_temp['2011-2016'] + df_temp['2006-2010']
-df_temp['Aging'] = df_temp['1991-2000'] + df_temp['2001-2005']
-df_temp['Old'] = df_temp['1960OrBefore'] + df_temp['1961-1980'] + df_temp['1981-1990']
-columns = ['Recent', 'Aging', 'Old']
+# df_temp['Recent'] = df_temp['2011-2016'] + df_temp['2006-2010']
+# df_temp['Aging'] = df_temp['1991-2000'] + df_temp['2001-2005']
+# df_temp['Old'] = df_temp['1960OrBefore'] + df_temp['1961-1980'] + df_temp['1981-1990']
+# columns = ['Recent', 'Aging', 'Old']
+columns = ['1960OrBefore'] + [f for f in fields]
 df_temp['Total'] = df_temp[columns].sum(axis=1)
 for column in columns:
     df_temp[column] = (df_temp[column] / df_temp['Total']) * 100
     df_temp = df_temp.rename(columns={column: column + '(%)'})
-df_hous = df_hous.join(df_temp[['FSA',
-                                'Recent(%)',
-                                'Aging(%)',
-                                'Old(%)']].set_index('FSA'), on='FSA')
+df_hous = df_hous.join(df_temp.drop(columns=['Total']).set_index('FSA'), on='FSA')
 
 
 df_hous.drop(columns=['Area(km2)'], inplace=True)
@@ -650,56 +649,166 @@ df_hous.round(2).head()
 
 # Clustering
 
-```{python}
-# df_env.drop(columns=['PostSecondary'], inplace=True)
-# Data scaling
-X_env = StandardScaler().fit_transform(df_env.set_index('FSA'))
-X_pop = StandardScaler().fit_transform(df_pop.set_index('FSA'))
-X_hous = StandardScaler().fit_transform(df_hous.set_index('FSA'))
 
-# Get the optimal number of clusters for KMeans using the elbow method
-k_env = 0
-k_pop = 0
-k_hous = 0
-datas = {'Environment': [df_env, X_env, k_env],
-         'Population': [df_pop, X_pop, k_pop],
-         'Housing': [df_hous, X_hous, k_hous]}
-for data in datas:
-    visualizer = KElbowVisualizer(KMeans(), k=(1,15), timings=False)
-    visualizer.fit(datas[data][1])
-    datas[data][2] = visualizer.elbow_value_
-    print(data)
+## K-Means
+
+```{python}
+def apply_kmeans(df):
+    # Data scaling (drop columns with cluster labels for modelling)
+    cluster_columns = []
+    for column in df.columns:
+        if 'Cluster' in column:
+            cluster_columns.append(column)
+    X = StandardScaler().fit_transform(df.drop(columns=cluster_columns).set_index('FSA'))
+    # Get the optimal number of clusters for KMeans using the elbow method
+    visualizer = KElbowVisualizer(KMeans(), k=(2,15), timings=False, show=False).fit(X)
+    k_cluster = visualizer.elbow_value_
     visualizer.show()
+    # Run KMeans model and get the clusters label
+    kmeans = KMeans(n_clusters=k_cluster, init='k-means++', n_init=15).fit(X)
+    df['Cluster_kmeans'] = kmeans.labels_
+    # Get the silhouette score to measure and compare the performance
+    silhouette = metrics.silhouette_score(X, kmeans.labels_, metric='euclidean')
+    
+    return df, silhouette
+
+silhouette_env = {}
+silhouette_pop = {}
+silhouette_hous = {}
+print('Environment')
+df_env, silhouette_env['kmeans'] = apply_kmeans(df_env)
+print('Population')
+df_pop, silhouette_pop['kmeans'] = apply_kmeans(df_pop)
+print('Housing')
+df_hous, silhouette_hous['kmeans'] = apply_kmeans(df_hous)
+```
+
+## DBSCAN
+
+```{python}
+def get_dbscan_parameters(df, min_pts):
+    eps_min = 0.1
+    eps_max = 3.2
+    step = 0.01
+
+    # Data scaling (drop columns with cluster labels for modelling)
+    cluster_columns = []
+    for column in df.columns:
+        if 'Cluster' in column:
+            cluster_columns.append(column)
+    X = StandardScaler().fit_transform(df.drop(columns=cluster_columns).set_index('FSA'))
+    
+    # Determine the optimal value for eps
+    nb_outliers = []
+    nb_clusters = []
+    silhouette = []
+    EPS = np.arange(eps_min, eps_max, step)
+    for eps in EPS:
+        dbscan = DBSCAN(eps=eps, min_samples=min_pts, metric='euclidean').fit(X)
+        unique, counts = np.unique(dbscan.labels_, return_counts=True)
+        value_counts = np.asarray((unique, counts)).T
+        if -1 in value_counts: # if there are outliers
+            nb_outliers.append(value_counts[0][1])
+            nb_clusters.append(value_counts.shape[0] - 1)
+            if value_counts.shape[0] - 1 > 1: # silhouette score only if there is more than one cluster
+                silhouette.append(metrics.silhouette_score(X, dbscan.labels_, metric='euclidean'))
+            else:
+                silhouette.append(np.nan) # fake value
+        else: # if no outliers
+            nb_outliers.append(0)
+            nb_clusters.append(value_counts.shape[0])
+            if value_counts.shape[0] > 1: # silhouette score only if there is more than one cluster
+                silhouette.append(metrics.silhouette_score(X, dbscan.labels_, metric='euclidean'))
+            else:
+                silhouette.append(np.nan) # fake value
+    
+    # Plot
+    fig, ax1 = plt.subplots()
+    # Number of outliers
+    ax1.set_xlabel('eps')
+    ax1.set_ylabel('Number of outliers', color='red')
+    ax1.plot(EPS, nb_outliers, 'r-')
+    ax1.tick_params(axis='y', labelcolor='red')
+    # Number of clusters
+    ax2 = ax1.twinx()
+    ax2.set_ylabel('Number of clusters', color='blue')
+    ax2.plot(EPS, nb_clusters, 'b-')
+    ax2.tick_params(axis='y', labelcolor='blue')
+    ax2.grid(False)
+    # Silhouette score
+    ax3 = ax1.twinx()
+    ax3.set_ylabel('Silhouette score', color='green')
+    ax3.plot(EPS, silhouette, 'g.')
+    ax3.tick_params(axis='y', labelcolor='green')
+    ax3.grid(False)
+    plt.show()
+    
+    # Get the best value for eps (minimum number of outliers and more than one cluster)
+    eps = EPS[[i for i,v in enumerate(nb_clusters) if v > 1][-1]]
+    
+    return eps
+
+
+def apply_dbscan(df, eps, min_pts):
+    # Data scaling (drop columns with cluster labels for modelling)
+    cluster_columns = []
+    for column in df.columns:
+        if 'Cluster' in column:
+            cluster_columns.append(column)
+    X = StandardScaler().fit_transform(df.drop(columns=cluster_columns).set_index('FSA'))
+    # Run DBSCAN model and get the clusters label
+    dbscan = DBSCAN(eps=eps, min_samples=min_pts, metric='euclidean').fit(X)
+    df['Cluster_DBSCAN'] = dbscan.labels_
+    # Get the silhouette score to measure and compare the performance
+    silhouette = metrics.silhouette_score(X, dbscan.labels_, metric='euclidean')
+    
+    return df, silhouette
+
+min_pts = 2
+# Get the eps value for each dataset
+print('Environment')
+eps_env = get_dbscan_parameters(df_env, min_pts)
+print('Population')
+eps_pop = get_dbscan_parameters(df_pop, min_pts)
+print('Housing')
+eps_hous = get_dbscan_parameters(df_hous, min_pts)
+# Run the DBSCAN model for each dataset
+df_env, silhouette_env['DBSCAN'] = apply_dbscan(df_env, eps_env, min_pts)
+df_pop, silhouette_pop['DBSCAN'] = apply_dbscan(df_pop, eps_pop, min_pts)
+df_hous, silhouette_hous['DBSCAN'] = apply_dbscan(df_hous, eps_hous, min_pts)
+```
+
+## Agglomerative clustering
+
+```{python}
+def apply_agglomerative(df):
+    # Data scaling (drop columns with cluster labels for modelling)
+    cluster_columns = []
+    for column in df.columns:
+        if 'Cluster' in column:
+            cluster_columns.append(column)
+    X = StandardScaler().fit_transform(df.drop(columns=cluster_columns).set_index('FSA'))
+    # Run Agglomerative clustering model and get the clusters label
+    silhouette = []
+    for n in range(2, 93):
+        agglo = AgglomerativeClustering(n_clusters=n, linkage='ward').fit(X)
+#     df['Cluster_Agglo'] = agglo.labels_
+        # Get the silhouette score to measure and compare the performance
+        silhouette.append(metrics.silhouette_score(X, agglo.labels_, metric='euclidean'))
+    
+    plt.plot(range(2, 93), silhouette)
+    
+    return df, silhouette
+
+df_env, silhouette_env['AgglomerativeClustering'] = apply_agglomerative(df_env)
 ```
 
 ```{python}
-# Run the kmeans model for each dataframe
-inertias_kmeans = {}
-silhouettes_kmeans = {}
-calinskis_kmeans = {}
-for data in datas:
-    kmeans = KMeans(n_clusters=datas[data][2], init='k-means++', n_init=20).fit(datas[data][1])
-    datas[data][0]['Cluster_kmeans'] = kmeans.labels_
-    # Metrics
-    inertias_kmeans[data] = kmeans.inertia_
-    silhouettes_kmeans[data] = metrics.silhouette_score(datas[data][1], kmeans.labels_, metric='euclidean')
-    calinskis_kmeans[data] = metrics.calinski_harabasz_score(datas[data][1], kmeans.labels_)
+df_env['Cluster_Agglo'].value_counts()
 ```
 
 ```{python}
-inertias_kmeans
-```
-
-```{python}
-silhouettes_kmeans
-```
-
-```{python}
-calinskis_kmeans
-```
-
-```{python}
-df_env['Cluster_kmeans'].value_counts()
+silhouette_env
 ```
 
 <!-- #region heading_collapsed=true -->
@@ -716,5 +825,17 @@ plt.plot(K, inertias, 'o-')
 ```
 
 ```{python hidden=TRUE}
-
+fig = plt.figure(figsize=(20,6))
+s = 1
+for data in datas:
+    k = 3
+    nbrs = NearestNeighbors(n_neighbors=k, metric='euclidean').fit(datas[data][1])
+    distances, indices = nbrs.kneighbors(datas[data][1])
+#     distance = distances.sum(axis=1)
+#     distance = distance / k
+    distances = np.sort(distances, axis=0)
+    plt.subplot(1, 3, s).set_title(data)
+    plt.plot(distances[:,k-1])
+    s = s + 1
+plt.show()
 ```
