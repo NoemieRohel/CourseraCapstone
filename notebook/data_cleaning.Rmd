@@ -826,6 +826,44 @@ df_pop, silhouette_pop['AgglomerativeClustering'] = apply_agglomerative(df_pop, 
 df_hous, silhouette_hous['AgglomerativeClustering'] = apply_agglomerative(df_hous, 2)
 ```
 
+# Analysis
+
+```{python}
+def boxplots(df, columns, method, nb_clusters, title):
+    method_columns = {'K-Means': 'Cluster_kmeans',
+                      'DBSCAN': 'Cluster_DBSCAN',
+                      'Agglomerative Clustering': 'Cluster_Agglomerative'}
+    fig = plt.figure(figsize=(20,6))
+    ax0 = fig.add_subplot(1, nb_clusters+1, 1)
+    df.boxplot(column=columns, ax=ax0)
+    ax0.set_title('Entire dataframe - ' + title)
+    for i in range(1, nb_clusters+1):
+        ax = fig.add_subplot(1, nb_clusters+1, i+1, sharey=ax0)
+        df[df[method_columns[method]]==i-1].boxplot(column=columns, ax=ax)
+        ax.set_title('Cluster ' + str(i-1) + ' ' + method + ' - ' + title)
+        
+
+boxplots(df_env, ['Walkscore', 'Bikescore'], 'K-Means', 3, 'Environment')
+columns = ['RestaurantBar', 'EntertainmentCulture', 'Sports', 'Outdoor', 'MetroStations', 'Daycare', 'PPS', 'PostSecondary']
+boxplots(df_env, columns, 'K-Means', 3, 'Environment')
+```
+
+```{python}
+df_env.describe()
+```
+
+```{python}
+df_env[df_env['Cluster_kmeans']==0].describe()
+```
+
+```{python}
+df_env[df_env['Cluster_kmeans']==1].describe()
+```
+
+```{python}
+df_env[df_env['Cluster_kmeans']==2].describe()
+```
+
 <!-- #region heading_collapsed=true -->
 # Tests
 <!-- #endregion -->
