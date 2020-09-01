@@ -24,6 +24,7 @@ import matplotlib.pyplot as plt
 from yellowbrick.cluster import KElbowVisualizer
 from sklearn.neighbors import NearestNeighbors
 import scipy.cluster.hierarchy as shc
+from sklearn.decomposition import PCA
 ```
 
 <!-- #region heading_collapsed=true -->
@@ -829,6 +830,61 @@ df_hous, silhouette_hous['AgglomerativeClustering'] = apply_agglomerative(df_hou
 # Analysis
 
 ```{python}
+def plot_results(df, method, clusters, title):
+    method_columns = {'K-Means': 'Cluster_kmeans',
+                      'DBSCAN': 'Cluster_DBSCAN',
+                      'Agglomerative Clustering': 'Cluster_Agglomerative'}
+    # Data scaling (drop columns with cluster labels for PCA)
+    cluster_columns = []
+    for column in df.columns:
+        if 'Cluster' in column:
+            cluster_columns.append(column)
+    X = StandardScaler().fit_transform(df.drop(columns=cluster_columns).set_index('FSA'))
+
+    pca = PCA(n_components=2).fit(X)
+    pca_2d = pca.transform(X)
+    
+    colors = ['r', 'b', 'g', 'c']
+    legend = []
+    for n in clusters:
+            if n == -1:
+                legend.append('Outliers')
+            else:
+                legend.append('Cluster ' + str(n))
+    if len(clusters) == 3:
+        for i in range(pca_2d.shape[0]):
+            if df.loc[i, method_columns[method]] == clusters[0]:
+                ax0 = plt.scatter(pca_2d[i,0], pca_2d[i,1], c=colors[0], marker='o')
+            if df.loc[i, method_columns[method]] == clusters[1]:
+                ax1 = plt.scatter(pca_2d[i,0], pca_2d[i,1], c=colors[1], marker='o')
+            if df.loc[i, method_columns[method]] == clusters[2]:
+                ax2 = plt.scatter(pca_2d[i,0], pca_2d[i,1], c=colors[2], marker='o')
+        plt.legend([ax0, ax1, ax2], legend)
+    if len(clusters) == 4:
+        for i in range(pca_2d.shape[0]):
+            if df.loc[i, method_columns[method]] == clusters[0]:
+                ax0 = plt.scatter(pca_2d[i,0], pca_2d[i,1], c=colors[0], marker='o')
+            if df.loc[i, method_columns[method]] == clusters[1]:
+                ax1 = plt.scatter(pca_2d[i,0], pca_2d[i,1], c=colors[1], marker='o')
+            if df.loc[i, method_columns[method]] == clusters[2]:
+                ax2 = plt.scatter(pca_2d[i,0], pca_2d[i,1], c=colors[2], marker='o')
+            if df.loc[i, method_columns[method]] == clusters[3]:
+                ax3 = plt.scatter(pca_2d[i,0], pca_2d[i,1], c=colors[3], marker='o')
+        plt.legend([ax0, ax1, ax2, ax3], legend)
+    plt.title(method + ' - ' + title)
+    print('Pourcentage of information carried by the dimension-reduced data: ' +
+          str(round(pca.explained_variance_ratio_.sum()*100, 2)) + ' %')
+    plt.show()
+
+
+df = df_env
+method = 'K-Means'
+clusters = [0, 1, 2]
+title = 'Environment'
+plot_results(df, method, clusters, title)
+```
+
+```{python}
 def boxplots(df, columns, method, nb_clusters, title):
     method_columns = {'K-Means': 'Cluster_kmeans',
                       'DBSCAN': 'Cluster_DBSCAN',
@@ -850,18 +906,6 @@ boxplots(df_env, columns, 'K-Means', 3, 'Environment')
 
 ```{python}
 df_env.describe()
-```
-
-```{python}
-df_env[df_env['Cluster_kmeans']==0].describe()
-```
-
-```{python}
-df_env[df_env['Cluster_kmeans']==1].describe()
-```
-
-```{python}
-df_env[df_env['Cluster_kmeans']==2].describe()
 ```
 
 <!-- #region heading_collapsed=true -->
