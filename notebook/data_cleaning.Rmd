@@ -21,6 +21,7 @@ from sklearn.cluster import KMeans, DBSCAN, AgglomerativeClustering
 from sklearn.preprocessing import StandardScaler
 from sklearn import metrics
 import matplotlib.pyplot as plt
+from matplotlib.ticker import PercentFormatter
 from yellowbrick.cluster import KElbowVisualizer
 from sklearn.neighbors import NearestNeighbors
 import scipy.cluster.hierarchy as shc
@@ -32,11 +33,11 @@ from sklearn.decomposition import PCA
 <!-- #endregion -->
 
 <!-- #region heading_collapsed=true hidden=true -->
-## Correspondance between 2016 and 2020 FSA
+## Correspondence between the FSAs of 2016 and 2020
 <!-- #endregion -->
 
 <!-- #region hidden=true -->
-The FSA have evolved since the census in 2016. The main part of the FSA is similar, but some of them have changed. So, we will group them in order to have similar territories for the data from 2016 and the data from 2020.
+The FSAs have evolved since the census in 2016. The main part of them is similar, but some have changed. So, we will group the FSAs that have changed in order to have similar territories for the data from 2016 and the data from 2020.
 <!-- #endregion -->
 
 ```{python hidden=TRUE}
@@ -94,16 +95,6 @@ def process_categories(category_name):
         if e in str(category_name).lower() and 'college' not in str(category_name).lower() or str(category_name) == 'Spa':
             return 'EntertainmentCulture'
     
-    # Services
-#     services = ['store', 'shop', 'service', 'pharmacy', 'bank', 'bakery', 'gas station', 'government', 'bodega',
-#                 'salon', 'post', 'rental car', 'veterinarian', 'boutique', 'car wash', 'tattoo', 'butcher', 'real estate',
-#                 'auto', 'storage', 'market', 'parking', 'atm', 'lawyer', 'funeral', 'food', 'cleaner', 'embassy',
-#                 'driving', 'agency', 'courthouse', 'repair', 'winery', 'grocery', 'animal', 'notary', 'food stand',
-#                 'credit union', 'locksmith', 'laundromat', 'general travel']
-#     for s in services:
-#         if s in str(category_name).lower():
-#             return 'Services'
-    
     # Sports
     sports = ['pool', 'gym', 'sports', 'field', 'studio', 'court', 'rink', 'golf', 'arena', 'track', 'stadium',
               'skate', 'range', 'dojo', 'curling']
@@ -117,19 +108,6 @@ def process_categories(category_name):
     for o in outdoor:
         if o in str(category_name).lower():
             return 'Outdoor'
-    
-#     # Medical
-#     medical = ['dentist', 'doctor', 'medical', 'hospital', 'assisted living', 'chiropractor', 'mental', 'healer',
-#                'emergency', 'therapist', 'laboratory', 'acupuncturist', 'clinic']
-#     for m in medical:
-#         if m in str(category_name).lower():
-#             return 'Medical'
-    
-#     # Religious
-#     religious = ['church', 'synagogue', 'temple', 'spiritual', 'mosque', 'shrine']
-#     for r in religious:
-#         if r in str(category_name).lower():
-#             return 'Religious'
     
     # All other
     if pd.isna(category_name):
@@ -160,7 +138,7 @@ metro_stations.head()
 ```
 
 <!-- #region heading_collapsed=true hidden=true -->
-## Daycare
+## Daycares
 <!-- #endregion -->
 
 ```{python hidden=TRUE}
@@ -239,14 +217,14 @@ schools['CD_POSTL_GDUNO'] = schools['CD_POSTL_GDUNO'].apply(lambda x: x[0:3])
 schools.rename(columns={'OBJECTID': 'SchoolId', 'CD_POSTL_GDUNO': 'FSA', 'ORDRE_ENS': 'Level'}, inplace=True)
 
 # Classify the school level into three categories: PPS (Preschool, Primary school and Secondary school),
-# Post-secondary and Professional Formation - Adult Education
+# Post-secondary and Professional Training - Adult Education
 def classify_school_levels(level):
     if level in ['Préscolaire', 'Primaire', 'Secondaire']:
         return 'PPS'
     if level in ['Collégial', 'Universitaire']:
         return 'PostSecondary'
     if level in ['Éducation aux adultes', 'Formation professionnelle']:
-        return 'ProfessionalFormation-AdultEducation'
+        return 'ProfessionalTraining-AdultEducation'
 schools['SchoolType'] = schools['Level'].apply(classify_school_levels)
 schools.sort_values(by=['FSA'], inplace=True)
 
@@ -258,11 +236,11 @@ schools.head()
 ```
 
 <!-- #region heading_collapsed=true hidden=true -->
-## Walkscore
+## Walk score
 <!-- #endregion -->
 
 <!-- #region hidden=true -->
-Let's see all the available and not available walkscores, transitscores and bikescores on the map.
+Let's see all the available and not available walk scores, transit scores and bike scores on the map.
 <!-- #endregion -->
 
 ```{python hidden=TRUE}
@@ -301,7 +279,7 @@ nan_ws_map
 ```
 
 <!-- #region hidden=true -->
-The available walkscores and bikescores can be processed but the transitscores are not relevant because they are too concentrated on a single geographic area.
+The available walk scores and bike scores can be processed but the transit scores are not relevant because they are too concentrated on a single geographic area.
 <!-- #endregion -->
 
 ```{python hidden=TRUE}
@@ -311,98 +289,46 @@ ws['FSA'] = ws['FSA'].apply(lambda x: process_fsa(x, 2016))
 walkscore = ws.groupby('FSA', as_index=False).mean()
 # Drop the transitscore because it is not relevant
 walkscore.drop(columns='Transitscore', inplace=True)
-
-# # Get the description associated with the score
-# def score_description(score, score_type):
-#     description = {'Walkscore': ['Car-dependent+', 'Car-dependent', 'SomewhatWalkable',
-#                                   'VeryWalkable', 'WalkersParadise'],
-#                     'Bikescore': ['SomewhatBikeable', 'SomewhatBikeable', 'Bikeable',
-#                                   'VeryBikeable', 'BikersParadise']}
-#     if score < 25:
-#         return description[score_type][0]
-#     if score >= 25 and score < 50:
-#         return description[score_type][1]
-#     if score >= 50 and score < 70:
-#         return description[score_type][2]
-#     if score >= 70 and score < 90:
-#         return description[score_type][3]
-#     if score >= 90 and score <= 100:
-#         return description[score_type][4]
-
-# walkscore.rename(columns={'Walkscore': 'WalkscoreValue',
-#                           'Bikescore': 'BikescoreValue'}, inplace=True)
-# score_types = ['Walkscore', 'Bikescore']
-# for score_type in score_types:
-#     walkscore[score_type] = walkscore[score_type + 'Value'].apply(lambda x: score_description(x, score_type))
 walkscore.head()
 ```
 
-<!-- #region hidden=true -->
-Let's see the choropleth map of Montreal for the walkscores and bikescores:
+<!-- #region heading_collapsed=true hidden=true -->
+## Census
 <!-- #endregion -->
 
 ```{python hidden=TRUE}
-score = 'Walkscore' # 'Walkscore' or 'Bikescore'
-bins = {'Walkscore': [0, 25, 50, 70, 90, 100],
-        'Bikescore': [0, 50, 70, 90, 100]}
-
-ws_map = folium.Map(location=[latitude, longitude], zoom_start=10, tiles=None)
-folium.TileLayer('CartoDB positron',name="Light Map",control=False).add_to(ws_map)
-label = folium.Popup(score, parse_html=True)
-folium.Choropleth(
-    geo_data=mtl_grp_geo_json,
-    data=walkscore,
-    columns=['FSA', score],
-    key_on='feature.properties.FSAGROUP',
-    fill_color='YlGnBu',
-    fill_opacity=0.7, 
-    line_opacity=0.2,
-    bins=bins[score],
-    legend_name=score,
-    popup=label
-).add_to(ws_map)
-
-ws_map
+# Get the census data
+census = pd.read_csv('../data/census/census_20200808_1501.csv', index_col=0)
+for fsa in ['H4T', 'H4Y', 'H4Z', 'H5A', 'H5B']:
+    census = census[census['FSA'] != fsa] # No data for these new FSAs
+# Process the FSA to make correspondance between 2016 and 2020
+census['FSA'] = census['FSA'].apply(lambda x: process_fsa(x, 2016))
+census.head()
 ```
 
-<!-- #region hidden=true -->
-Walkscore:
-- 0-25: Car-dependent *(almost all errands require a car)*
-- 25-50: Car-dependent *(most errands require a car)*
-- 50-70: Somewhat walkable *(some errands can be accomplished on foot)*
-- 70-90: Very walkable *(most errands can be accomplished on foot)*
-- 90-100: Walker's paradise *(daily errands do not require a car)*
-
-Bikescore:
-- 0-50: Somewhat bikeable *(minimal bike infrastructure)*
-- 50-70: Bikeable *(some bike infrastructure)*
-- 70-90: Very bikeable *(biking is convenient for most trips)*
-- 90-100: Biker's paradise *(daily errands can be accomplished on a bike)*
-<!-- #endregion -->
-
 <!-- #region heading_collapsed=true -->
-# Creating the master dataframes
+# Creating the master data frames
 <!-- #endregion -->
 
 ```{python hidden=TRUE}
-# Get the average of a column, ponderated by another
-def ponderated_average(df, df_pond, field):
-    df = df.join(df_pond.set_index('FSA'), on='FSA')
+# Get the average of a column, weighted by another
+def weighted_average(df, df_weight, field):
+    df = df.join(df_weight.set_index('FSA'), on='FSA')
     d1 = df.drop_duplicates(subset=['FSA'], keep=('first'))
     d2 = df.drop_duplicates(subset=['FSA'], keep=('last'))
     df = pd.concat([d1,d2]).drop_duplicates()
-    df['Product'] = df[field] * df['Ponderator']
+    df['Product'] = df[field] * df['Weight']
     df = df.groupby('FSA', as_index=False).sum()
-    df[field] = df['Product'] / df['Ponderator']
+    df[field] = df['Product'] / df['Weight']
     return df[['FSA', field]]
 ```
 
 <!-- #region heading_collapsed=true hidden=true -->
-## Environment dataframe
+## Environment data frame
 <!-- #endregion -->
 
 ```{python hidden=TRUE}
-# Get the FSA with their areas to create the master dataframe for the FSA environment
+# Get the FSA with their areas to create the master data frame for the FSA environment
 df_env = pd.read_csv('../data/fsa_areas.csv', index_col=0)
 # Process the FSA to make correspondance between 2016 and 2020
 df_env['FSA'] = df_env['FSA'].apply(lambda x: process_fsa(x, 2020))
@@ -410,17 +336,6 @@ df_env = df_env.groupby('FSA', as_index=False).sum()
 
 # Add the walkscores and bikescores to the dataframe
 df_env = df_env.join(walkscore[['FSA', 'Walkscore', 'Bikescore']].set_index('FSA'), on='FSA')
-# # We can't cluster categorical features so let's turn them into numerical ones
-# df_env['Walkscore'] = df_env['Walkscore'].replace({'Car-dependent+': 0,
-#                                                    'Car-dependent': 1,
-#                                                    'SomewhatWalkable': 2,
-#                                                    'VeryWalkable': 3,
-#                                                    'WalkersParadise': 4})
-# df_env['Bikescore'] = df_env['Bikescore'].replace({'SomewhatBikeable': 0,
-#                                                    'SomewhatBikeable': 1,
-#                                                    'Bikeable': 2,
-#                                                    'VeryBikeable': 3,
-#                                                    'BikersParadise': 4})
 
 # Add the foursquare venues
 categories = ['RestaurantBar', 'EntertainmentCulture', 'Sports', 'Outdoor']
@@ -451,58 +366,22 @@ for school_type in school_types:
 # Fill the Nan values with zero
 df_env.fillna(0, inplace=True)
 
-
-# # Converting numerical values into categorical ones for the models
-# def num_to_cat(value, category):
-#     if category in ['MetroStations', 'PostSecondary']:
-#         if value == 0:
-#             return 'None'
-#         elif value > 0 and value < 1:
-#             return 'SomeInTheFSA'
-#         else:
-#             return 'SomeClose'
-#     else:
-#         thresholds = {'RestaurantBar': [[0, 2, 5, 10], ['NoneOrFew', 'Some', 'GoodChoice', 'Paradise']],
-#                       'EntertainmentCulture': [[0, 1, 3, 6], ['NoneOrFew', 'Some', 'GoodChoice', 'Paradise']],
-#                       'Sports': [[0, 1, 2], ['NoneOrFew', 'Some', 'Choice']],
-#                       'Outdoor': [[0, 1, 2], ['NoneOrFew', 'Some', 'Paradise']],
-#                       'Daycare': [[0, 1, 3, 6], ['NoneOrFew', 'Some', 'GoodChoice', 'Paradise']],
-#                       'PPS': [[0, 1, 4], ['NoneOrFew', 'Some', 'Choice']]}
-#         for i in range(len(thresholds[category][0])):
-#             if i + 1 < len(thresholds[category][0]):
-#                 if value >= thresholds[category][0][i] and value < thresholds[category][0][i+1]:
-#                     return thresholds[category][1][i]
-#             else:
-#                 if value >= thresholds[category][0][i]:
-#                     return thresholds[category][1][i]
-
-# categories = ['RestaurantBar', 'EntertainmentCulture', 'Sports', 'Outdoor', 'MetroStations', 'Daycare', 'PPS', 'PostSecondary']
-# for category in categories:
-#     df_env[category] = df_env[category].apply(lambda x: num_to_cat(x, category))
-
 df_env.drop(columns=['Area(km2)'], inplace=True)
 df_env.round(2).head()
 ```
 
 <!-- #region heading_collapsed=true hidden=true -->
-## Population dataframe
+## Population data frame
 <!-- #endregion -->
 
 ```{python hidden=TRUE}
-# Get the FSA with their areas to create the master dataframe for the FSA population
+# Get the FSA with their areas to create the master data frame for the FSA population
 df_pop = pd.read_csv('../data/fsa_areas.csv', index_col=0)
 # Process the FSA to make correspondance between 2016 and 2020
 df_pop['FSA'] = df_pop['FSA'].apply(lambda x: process_fsa(x, 2020))
 df_pop = df_pop.groupby('FSA', as_index=False).sum()
 
-# Get the census data
-census = pd.read_csv('../data/census/census_20200808_1501.csv', index_col=0)
-for fsa in ['H4T', 'H4Y', 'H4Z', 'H5A', 'H5B']:
-    census = census[census['FSA'] != fsa]
-# Process the FSA to make correspondance between 2016 and 2020
-census['FSA'] = census['FSA'].apply(lambda x: process_fsa(x, 2016))
-
-# Get the fields we are interested in for the population dataframe
+# Get the fields from the census we are interested in for the population dataframe
 # Population
 df_temp = census[census['CategoryHierId'] == '1.1.1'][['FSA', 'CategoryValue']].groupby('FSA', as_index=False).sum()
 df_pop = df_pop.join(df_temp.rename(columns={'CategoryValue': 'Population'}).set_index('FSA'), on='FSA')
@@ -513,60 +392,53 @@ df_pop['Population'] = df_pop['Population'] / df_pop['Area(km2)']
 fields = {'Age': '1.2.4',
           'Income': '4.1.1.1.1'}
 for field in fields:
-    # for grouped FSA: take the average, ponderated by the population of the FSA
+    # for grouped FSA: take the population-weighted average
     df_temp = census[census['CategoryHierId'] == fields[field]][['FSA', 'CategoryValue']].rename(
         columns={'CategoryValue': field})
-    df_pond = census[census['CategoryHierId'] == '1.1.1'][['FSA', 'CategoryValue']].rename(
-        columns={'CategoryValue': 'Ponderator'})
-    df_temp = ponderated_average(df_temp, df_pond, field)
+    df_weight = census[census['CategoryHierId'] == '1.1.1'][['FSA', 'CategoryValue']].rename(
+        columns={'CategoryValue': 'Weight'})
+    df_temp = weighted_average(df_temp, df_weight, field)
     df_pop = df_pop.join(df_temp.set_index('FSA'), on='FSA')
 
-# Types of families
+# Family types
 df_temp = census[census['TypeHierId'] == '2.3.4.1'][['FSA', 'TypeValue']].rename(
-    columns={'TypeValue': 'CouplesNoChildren'}).groupby('FSA', as_index=False).sum()
+    columns={'TypeValue': 'ChildlessCouples'}).groupby('FSA', as_index=False).sum()
 fields = {'CouplesWithChildren': ['2.3.4.2', 'TypeValue'],
           'LoneWithChildren': ['2.3.5.1', 'CategoryValue'],
           'OnePerson': ['2.4.1.3.1', 'TypeValue'],
-          'MultipleNoFamily': ['2.4.1.3.2', 'TypeValue']}
+          'SeveralNoFamily': ['2.4.1.3.2', 'TypeValue']}
 for field in fields:
     df_tmp = census[census['TypeHierId'] == fields[field][0]][['FSA', fields[field][1]]].rename(
         columns={fields[field][1]: field}).groupby('FSA', as_index=False).sum()
     df_temp = df_temp.join(df_tmp.set_index('FSA'), on='FSA')
 df_temp['FamiliesWithChildren'] = df_temp['CouplesWithChildren'] + df_temp['LoneWithChildren']
-columns = ['CouplesNoChildren', 'FamiliesWithChildren', 'OnePerson', 'MultipleNoFamily']
+columns = ['ChildlessCouples', 'FamiliesWithChildren', 'OnePerson', 'SeveralNoFamily']
 df_temp['Total'] = df_temp[columns].sum(axis=1)
 for column in columns:
     df_temp[column] = (df_temp[column] / df_temp['Total']) * 100
     df_temp = df_temp.rename(columns={column: column + '(%)'})
 df_pop = df_pop.join(df_temp[['FSA',
-                              'CouplesNoChildren(%)',
+                              'ChildlessCouples(%)',
                               'FamiliesWithChildren(%)',
                               'OnePerson(%)',
-                              'MultipleNoFamily(%)']].set_index('FSA'), on='FSA')
+                              'SeveralNoFamily(%)']].set_index('FSA'), on='FSA')
 
 df_pop.drop(columns=['Area(km2)'], inplace=True)
 df_pop.round(2).head()
 ```
 
 <!-- #region heading_collapsed=true hidden=true -->
-## Housing dataframe
+## Housing data frame
 <!-- #endregion -->
 
 ```{python hidden=TRUE}
-# Get the FSA with their areas to create the master dataframe for the FSA housing
+# Get the FSA with their areas to create the master data frame for the FSA housing
 df_hous = pd.read_csv('../data/fsa_areas.csv', index_col=0)
 # Process the FSA to make correspondance between 2016 and 2020
 df_hous['FSA'] = df_hous['FSA'].apply(lambda x: process_fsa(x, 2020))
 df_hous = df_hous.groupby('FSA', as_index=False).sum()
 
-# Get the census data
-census = pd.read_csv('../data/census/census_20200808_1501.csv', index_col=0)
-for fsa in ['H4T', 'H4Y', 'H4Z', 'H5A', 'H5B']:
-    census = census[census['FSA'] != fsa]
-# Process the FSA to make correspondance between 2016 and 2020
-census['FSA'] = census['FSA'].apply(lambda x: process_fsa(x, 2016))
-
-# Get the fields we are interested in for the population dataframe
+# Get the fields from the census we are interested in for the population dataframe
 # Number of dwellings
 df_temp = census[census['TypeHierId'] == '2.1.1.1'][['FSA', 'CategoryValue']].groupby(
     'FSA', as_index=False).sum()
@@ -578,12 +450,12 @@ df_hous['NbDwellings'] = df_hous['NbDwellings'] / df_hous['Area(km2)']
 fields = {'Value($)': '9.1.13.5',
           'NbRooms': '9.1.5'}
 for field in fields:
-    # for grouped FSA: take the average, ponderated by the number of dwellings of the FSA
+    # for grouped FSA: take the average weighted by the number of dwellings of the FSA
     df_temp = census[census['CategoryHierId'] == fields[field]][['FSA', 'CategoryValue']].rename(
         columns={'CategoryValue': field})
-    df_pond = census[census['TypeHierId'] == '2.1.1.1'][['FSA', 'CategoryValue']].rename(
-        columns={'CategoryValue': 'Ponderator'})
-    df_temp = ponderated_average(df_temp, df_pond, field)
+    df_weight = census[census['TypeHierId'] == '2.1.1.1'][['FSA', 'CategoryValue']].rename(
+        columns={'CategoryValue': 'Weight'})
+    df_temp = weighted_average(df_temp, df_weight, field)
     df_hous = df_hous.join(df_temp.set_index('FSA'), on='FSA')
 
 # Tenure
@@ -635,10 +507,6 @@ for field in fields:
     df_tmp = census[census['TypeHierId'] == fields[field]][['FSA', 'TypeValue']].rename(
         columns={'TypeValue': field}).groupby('FSA', as_index=False).sum()
     df_temp = df_temp.join(df_tmp.set_index('FSA'), on='FSA')
-# df_temp['Recent'] = df_temp['2011-2016'] + df_temp['2006-2010']
-# df_temp['Aging'] = df_temp['1991-2000'] + df_temp['2001-2005']
-# df_temp['Old'] = df_temp['1960OrBefore'] + df_temp['1961-1980'] + df_temp['1981-1990']
-# columns = ['Recent', 'Aging', 'Old']
 columns = ['1960OrBefore'] + [f for f in fields]
 df_temp['Total'] = df_temp[columns].sum(axis=1)
 for column in columns:
@@ -651,14 +519,153 @@ df_hous.drop(columns=['Area(km2)'], inplace=True)
 df_hous.round(2).head()
 ```
 
+<!-- #region heading_collapsed=true -->
+# Data exploratory analysis
+<!-- #endregion -->
+
+<!-- #region hidden=true -->
+We create functions to plot pareto charts and histograms.
+<!-- #endregion -->
+
+```{python hidden=TRUE}
+def pareto_chart(df, column, ylabel):
+    
+    df_bar = df[['FSA', column]].sort_values(by=[column], ascending=False)
+    df_bar['Cumulative'] = df_bar[column].cumsum() / df_bar[column].sum() * 100
+    fig, ax = plt.subplots(figsize=(20,10))
+    ax.bar(df_bar['FSA'], df_bar[column])
+    ax.grid(axis='x')
+    ax.tick_params(axis='x', labelrotation=90, labelsize=12)
+    ax.tick_params(axis='y', labelsize=14)
+    ax.set_xlabel('FSAs', fontsize=16)
+    ax.set_ylabel(ylabel, fontsize=16)
+    ax2 = ax.twinx()
+    ax2.plot(df_bar['FSA'], df_bar['Cumulative'], color='red')
+    ax2.yaxis.set_major_formatter(PercentFormatter())
+    ax2.grid(False)
+    ax2.tick_params(labelsize=14)
+    ax2.set_ylabel('Cumulative percentages', fontsize=14)
+
+    
+def plot_hist(df, column, bins, decimals, xlabel):
+    count, bin_edges = np.histogram(df[column], bins)
+    round_bin_edges = [round(num, decimals) for num in bin_edges]
+    n = len(df[column])
+    df[column].plot(kind='hist', xticks=round_bin_edges, bins=bins, weights=np.ones(n) / n,
+                    grid=False, rwidth=0.9)
+    plt.gca().yaxis.set_major_formatter(PercentFormatter(1))
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
+    plt.xlabel(xlabel, fontsize=13)
+    plt.ylabel('Frequency', fontsize=13)
+    plt.grid(axis='y', alpha=0.75)
+```
+
+<!-- #region heading_collapsed=true hidden=true -->
+## Environment data frame
+<!-- #endregion -->
+
+<!-- #region hidden=true -->
+Let's see the choropleth map of Montreal for the walk scores. Here are the groups values and descriptions:
+
+- 0-25: Car-dependent *(almost all errands require a car)*
+- 25-50: Car-dependent *(most errands require a car)*
+- 50-70: Somewhat walkable *(some errands can be accomplished on foot)*
+- 70-90: Very walkable *(most errands can be accomplished on foot)*
+- 90-100: Walker's paradise *(daily errands do not require a car)*
+<!-- #endregion -->
+
+```{python hidden=TRUE}
+# Data for Montreal
+latitude = 45.535433
+longitude = -73.636493
+mtl_geo_json = "../data/maps/mtl_fsa_map.geojson"
+mtl_grp_geo_json = "../data/maps/mtl_fsa_grouped_map.geojson"
+
+ws_map = folium.Map(location=[latitude, longitude], zoom_start=10, tiles=None)
+folium.TileLayer('CartoDB positron',name="Light Map",control=False).add_to(ws_map)
+#label = folium.Popup(score, parse_html=True)
+folium.Choropleth(
+    geo_data=mtl_grp_geo_json,
+    data=df_env,
+    columns=['FSA', 'Walkscore'],
+    key_on='feature.properties.FSAGROUP',
+    fill_color='YlGnBu',
+    fill_opacity=0.7, 
+    line_opacity=0.2,
+    bins=[0, 25, 50, 70, 90, 100],
+    legend_name='Walkscore',
+    #popup=label
+).add_to(ws_map)
+
+ws_map
+```
+
+<!-- #region hidden=true -->
+Let's see a pareto chart of the restaurants and bars in Montreal.
+<!-- #endregion -->
+
+```{python hidden=TRUE}
+pareto_chart(df_env, 'RestaurantBar', 'Density of Restaurants and Bars')
+```
+
+<!-- #region hidden=true -->
+Let's see a histogram of the PPS in Montreal.
+<!-- #endregion -->
+
+```{python hidden=TRUE}
+plot_hist(df_env, 'PPS', 15, 0, 'Density of PPS')
+```
+
+<!-- #region heading_collapsed=true hidden=true -->
+## Population data frame
+<!-- #endregion -->
+
+<!-- #region hidden=true -->
+Let's see a pareto chart of the density of population.
+<!-- #endregion -->
+
+```{python hidden=TRUE}
+pareto_chart(df_pop, 'Population', 'Density of population')
+```
+
+<!-- #region hidden=true -->
+Let's see a histogram of the age of population.
+<!-- #endregion -->
+
+```{python hidden=TRUE}
+plot_hist(df_pop, 'Age', 10, 1, 'Median age of population')
+```
+
+<!-- #region heading_collapsed=true hidden=true -->
+## Housing data frame
+<!-- #endregion -->
+
+<!-- #region hidden=true -->
+Let's see a pareto chart of the value of the real estate properties.
+<!-- #endregion -->
+
+```{python hidden=TRUE}
+pareto_chart(df_hous, 'Value($)', 'Average value ($) of the real estate properties')
+```
+
+<!-- #region hidden=true -->
+Let's see a histogram of the average number of rooms in the dwellings.
+<!-- #endregion -->
+
+```{python hidden=TRUE}
+plot_hist(df_hous, 'NbRooms', 10, 1, 'Average number of rooms in the dwellings')
+```
+
 # Clustering
 
-
+<!-- #region heading_collapsed=true -->
 ## K-Means
+<!-- #endregion -->
 
-```{python}
+```{python hidden=TRUE}
 def apply_kmeans(df):
-    # Data scaling (drop columns with cluster labels for modelling)
+    # Data scaling (making sure to drop potential columns with cluster labels for modelling)
     cluster_columns = []
     for column in df.columns:
         if 'Cluster' in column:
@@ -687,15 +694,17 @@ print('Housing')
 df_hous, silhouette_hous['kmeans'] = apply_kmeans(df_hous)
 ```
 
+<!-- #region heading_collapsed=true -->
 ## DBSCAN
+<!-- #endregion -->
 
-```{python}
+```{python hidden=TRUE}
 def get_dbscan_parameters(df, min_pts):
     eps_min = 0.1
     eps_max = 3.2
     step = 0.01
 
-    # Data scaling (drop columns with cluster labels for modelling)
+    # Data scaling (making sure to drop potential columns with cluster labels for modelling)
     cluster_columns = []
     for column in df.columns:
         if 'Cluster' in column:
@@ -714,47 +723,39 @@ def get_dbscan_parameters(df, min_pts):
         if -1 in value_counts: # if there are outliers
             nb_outliers.append(value_counts[0][1])
             nb_clusters.append(value_counts.shape[0] - 1)
-            if value_counts.shape[0] - 1 > 1: # silhouette score only if there is more than one cluster
-                silhouette.append(metrics.silhouette_score(X, dbscan.labels_, metric='euclidean'))
-            else:
-                silhouette.append(np.nan) # fake value
         else: # if no outliers
             nb_outliers.append(0)
             nb_clusters.append(value_counts.shape[0])
-            if value_counts.shape[0] > 1: # silhouette score only if there is more than one cluster
-                silhouette.append(metrics.silhouette_score(X, dbscan.labels_, metric='euclidean'))
-            else:
-                silhouette.append(np.nan) # fake value
+
+    # Get the best value for eps (minimum number of outliers and more than one cluster)
+    eps = EPS[[i for i,v in enumerate(nb_clusters) if v > 1][-1]]
     
     # Plot
     fig, ax1 = plt.subplots()
     # Number of outliers
-    ax1.set_xlabel('eps')
-    ax1.set_ylabel('Number of outliers', color='red')
+    ax1.set_xlabel('eps', fontsize=16)
+    ax1.set_ylabel('Number of outliers', color='r', fontsize=16)
     ax1.plot(EPS, nb_outliers, 'r-')
-    ax1.tick_params(axis='y', labelcolor='red')
+    ax1.tick_params(axis='y', labelcolor='r', labelsize=13)
+    ax1.tick_params(labelsize=13)
     # Number of clusters
     ax2 = ax1.twinx()
-    ax2.set_ylabel('Number of clusters', color='blue')
+    ax2.set_ylabel('Number of clusters', color='b', fontsize=16)
     ax2.plot(EPS, nb_clusters, 'b-')
-    ax2.tick_params(axis='y', labelcolor='blue')
+    ax2.tick_params(axis='y', labelcolor='b', labelsize=13)
+    ax2.tick_params(labelsize=13)
     ax2.grid(False)
-    # Silhouette score
-    ax3 = ax1.twinx()
-    ax3.set_ylabel('Silhouette score', color='green')
-    ax3.plot(EPS, silhouette, 'g.')
-    ax3.tick_params(axis='y', labelcolor='green')
-    ax3.grid(False)
+    # Show the selected point
+    plt.axvline(x=eps, color='grey', linestyle=':')
+    plt.axhline(y=nb_clusters[np.where(EPS == eps)[0][0]], color='grey', linestyle=':')
     plt.show()
     
-    # Get the best value for eps (minimum number of outliers and more than one cluster)
-    eps = EPS[[i for i,v in enumerate(nb_clusters) if v > 1][-1]]
     
     return eps
 
 
 def apply_dbscan(df, eps, min_pts):
-    # Data scaling (drop columns with cluster labels for modelling)
+    # Data scaling (making sure to drop potential columns with cluster labels for modelling)
     cluster_columns = []
     for column in df.columns:
         if 'Cluster' in column:
@@ -782,9 +783,15 @@ df_pop, silhouette_pop['DBSCAN'] = apply_dbscan(df_pop, eps_pop, min_pts)
 df_hous, silhouette_hous['DBSCAN'] = apply_dbscan(df_hous, eps_hous, min_pts)
 ```
 
-## Agglomerative clustering
+```{python hidden=TRUE}
+df_hous[df_hous['Cluster_DBSCAN'] == -1].describe().round(1)
+```
 
-```{python}
+<!-- #region heading_collapsed=true -->
+## Agglomerative clustering
+<!-- #endregion -->
+
+```{python hidden=TRUE}
 def plot_dendrogram(df, title, select=None):
     # Data scaling (drop columns with cluster labels for modelling)
     cluster_columns = []
@@ -806,7 +813,7 @@ plot_dendrogram(df_pop, 'Population', 12.5)
 plot_dendrogram(df_hous, 'Housing', 22.5)
 ```
 
-```{python}
+```{python hidden=TRUE}
 def apply_agglomerative(df, n_cluster):
     # Data scaling (drop columns with cluster labels for modelling)
     cluster_columns = []
@@ -827,9 +834,11 @@ df_pop, silhouette_pop['AgglomerativeClustering'] = apply_agglomerative(df_pop, 
 df_hous, silhouette_hous['AgglomerativeClustering'] = apply_agglomerative(df_hous, 2)
 ```
 
+<!-- #region heading_collapsed=true -->
 # Analysis
+<!-- #endregion -->
 
-```{python}
+```{python hidden=TRUE}
 def plot_results(df, method, clusters, title):
     method_columns = {'K-Means': 'Cluster_kmeans',
                       'DBSCAN': 'Cluster_DBSCAN',
@@ -884,134 +893,22 @@ title = 'Environment'
 plot_results(df, method, clusters, title)
 ```
 
-```{python}
-def boxplots(df, columns, method, nb_clusters, title):
-    method_columns = {'K-Means': 'Cluster_kmeans',
-                      'DBSCAN': 'Cluster_DBSCAN',
-                      'Agglomerative Clustering': 'Cluster_Agglomerative'}
-    fig = plt.figure(figsize=(20,6))
-    ax0 = fig.add_subplot(1, nb_clusters+1, 1)
-    df.boxplot(column=columns, ax=ax0)
-    ax0.set_title('Entire dataframe - ' + title)
-    for i in range(1, nb_clusters+1):
-        ax = fig.add_subplot(1, nb_clusters+1, i+1, sharey=ax0)
-        df[df[method_columns[method]]==i-1].boxplot(column=columns, ax=ax)
-        ax.set_title('Cluster ' + str(i-1) + ' ' + method + ' - ' + title)
-        
-
-boxplots(df_env, ['Walkscore', 'Bikescore'], 'K-Means', 3, 'Environment')
-columns = ['RestaurantBar', 'EntertainmentCulture', 'Sports', 'Outdoor', 'MetroStations', 'Daycare', 'PPS', 'PostSecondary']
-boxplots(df_env, columns, 'K-Means', 3, 'Environment')
-```
-
-```{python}
-df_env.describe()
-```
-
-<!-- #region heading_collapsed=true -->
-# Tests
-<!-- #endregion -->
-
 ```{python hidden=TRUE}
-df = df_hous
-# Data scaling (drop columns with cluster labels for modelling)
-cluster_columns = []
-for column in df.columns:
-    if 'Cluster' in column:
-        cluster_columns.append(column)
-X = StandardScaler().fit_transform(df.drop(columns=cluster_columns).set_index('FSA'))
+env_map = folium.Map(location=[latitude, longitude], zoom_start=10, tiles=None)
+folium.TileLayer('CartoDB positron',name="Light Map",control=False).add_to(env_map)
+folium.Choropleth(
+    geo_data=mtl_grp_geo_json,
+    data=df_env,
+    columns=['FSA', 'Cluster_kmeans'],
+    key_on='feature.properties.FSAGROUP',
+    fill_color='RdYlBu',
+    fill_opacity=0.7, 
+    line_opacity=0.2,
+    bins=[0, 1, 2, 3],
+    legend_name='Cluster',
+).add_to(env_map)
 
-K = range(2,10)
-inertias = []
-silhouette = []
-calinski = []
-davies = []
-for k in K:
-    k_means = KMeans(n_clusters=k).fit(X)
-    inertias.append(k_means.inertia_)
-    silhouette.append(metrics.silhouette_score(X, k_means.labels_, metric='euclidean'))
-    calinski.append(metrics.calinski_harabasz_score(X, k_means.labels_))
-    davies.append(metrics.davies_bouldin_score(X, k_means.labels_))
-# plt.plot(K, inertias, 'ko-')
-plt.plot(K, silhouette, 'bo-')
-# plt.plot(K, calinski, 'go-')
-# plt.plot(K, davies, 'ro-')
-```
-
-```{python hidden=TRUE}
-df = df_hous
-
-# Data scaling (drop columns with cluster labels for modelling)
-cluster_columns = []
-for column in df.columns:
-    if 'Cluster' in column:
-        cluster_columns.append(column)
-X = StandardScaler().fit_transform(df.drop(columns=cluster_columns).set_index('FSA'))
-
-range_n_clusters = [2, 3, 4, 5, 6, 7, 8, 9, 10]
-
-for n_clusters in range_n_clusters:
-    
-    fig, ax1 = plt.subplots()
-
-    ag = AgglomerativeClustering(n_clusters=n_clusters, linkage='ward').fit(X)
-    labels = ag.labels_
-
-    silhouette_avg = metrics.silhouette_score(X, labels)
-
-    # Compute the silhouette scores for each sample
-    sample_silhouette_values = metrics.silhouette_samples(X, labels)
-
-    y_lower = 10
-    for i in range(n_clusters):
-        ith_cluster_silhouette_values = \
-            sample_silhouette_values[labels == i]
-
-        ith_cluster_silhouette_values.sort()
-
-        size_cluster_i = ith_cluster_silhouette_values.shape[0]
-        y_upper = y_lower + size_cluster_i
-
-#         color = cm.nipy_spectral(float(i) / n_clusters)
-        ax1.fill_betweenx(np.arange(y_lower, y_upper),
-                          0, ith_cluster_silhouette_values, alpha=0.7)
-
-        # Label the silhouette plots with their cluster numbers at the middle
-        ax1.text(-0.05, y_lower + 0.5 * size_cluster_i, str(i))
-
-        # Compute the new y_lower for next plot
-        y_lower = y_upper + 10  # 10 for the 0 samples
-
-    ax1.set_title("The silhouette plot for the various clusters.")
-    ax1.set_xlabel("The silhouette coefficient values")
-    ax1.set_ylabel("Cluster label")
-
-    # The vertical line for average silhouette score of all the values
-    ax1.axvline(x=silhouette_avg, color="red", linestyle="--")
-
-    ax1.set_yticks([])  # Clear the yaxis labels / ticks
-#     ax1.set_xticks([-0.1, 0, 0.2, 0.4, 0.6, 0.8, 1])
-
-    plt.suptitle(("Silhouette analysis for Agglomerative clustering on sample data "
-                  "with n_clusters = %d" % n_clusters),
-                 fontsize=14, fontweight='bold')
-plt.show()
-```
-
-```{python hidden=TRUE}
-fig = plt.figure(figsize=(20,6))
-s = 1
-for data in datas:
-    k = 3
-    nbrs = NearestNeighbors(n_neighbors=k, metric='euclidean').fit(datas[data][1])
-    distances, indices = nbrs.kneighbors(datas[data][1])
-#     distance = distances.sum(axis=1)
-#     distance = distance / k
-    distances = np.sort(distances, axis=0)
-    plt.subplot(1, 3, s).set_title(data)
-    plt.plot(distances[:,k-1])
-    s = s + 1
-plt.show()
+env_map
 ```
 
 ```{python hidden=TRUE}
