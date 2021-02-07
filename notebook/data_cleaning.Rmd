@@ -657,9 +657,20 @@ Let's see a histogram of the average number of rooms in the dwellings.
 plot_hist(df_hous, 'NbRooms', 10, 1, 'Average number of rooms in the dwellings')
 ```
 
-# Clustering
-
 <!-- #region heading_collapsed=true -->
+# Clustering
+<!-- #endregion -->
+
+```{python hidden=TRUE}
+silhouette_env = {}
+silhouette_pop = {}
+silhouette_hous = {}
+calinski_env = {}
+calinski_pop = {}
+calinski_hous = {}
+```
+
+<!-- #region heading_collapsed=true hidden=true -->
 ## K-Means
 <!-- #endregion -->
 
@@ -678,23 +689,21 @@ def apply_kmeans(df):
     # Run KMeans model and get the clusters label
     kmeans = KMeans(n_clusters=k_cluster, init='k-means++', n_init=15).fit(X)
     df['Cluster_kmeans'] = kmeans.labels_
-    # Get the silhouette score to measure and compare the performance
-    silhouette = metrics.silhouette_score(X, kmeans.labels_, metric='euclidean')
+    # Get the silhouette and calinski-harabaz scores to measure and compare the performance
+    silhouette = metrics.silhouette_score(X, kmeans.labels_)
+    calinski = metrics.calinski_harabasz_score(X, kmeans.labels_)
     
-    return df, silhouette
+    return df, silhouette, calinski
 
-silhouette_env = {}
-silhouette_pop = {}
-silhouette_hous = {}
 print('Environment')
-df_env, silhouette_env['kmeans'] = apply_kmeans(df_env)
+df_env, silhouette_env['kmeans'], calinski_env['kmeans'] = apply_kmeans(df_env)
 print('Population')
-df_pop, silhouette_pop['kmeans'] = apply_kmeans(df_pop)
+df_pop, silhouette_pop['kmeans'], calinski_pop['kmeans'] = apply_kmeans(df_pop)
 print('Housing')
-df_hous, silhouette_hous['kmeans'] = apply_kmeans(df_hous)
+df_hous, silhouette_hous['kmeans'], calinski_hous['kmeans'] = apply_kmeans(df_hous)
 ```
 
-<!-- #region heading_collapsed=true -->
+<!-- #region heading_collapsed=true hidden=true -->
 ## DBSCAN
 <!-- #endregion -->
 
@@ -714,7 +723,6 @@ def get_dbscan_parameters(df, min_pts):
     # Determine the optimal value for eps
     nb_outliers = []
     nb_clusters = []
-    silhouette = []
     EPS = np.arange(eps_min, eps_max, step)
     for eps in EPS:
         dbscan = DBSCAN(eps=eps, min_samples=min_pts, metric='euclidean').fit(X)
@@ -764,10 +772,11 @@ def apply_dbscan(df, eps, min_pts):
     # Run DBSCAN model and get the clusters label
     dbscan = DBSCAN(eps=eps, min_samples=min_pts, metric='euclidean').fit(X)
     df['Cluster_DBSCAN'] = dbscan.labels_
-    # Get the silhouette score to measure and compare the performance
-    silhouette = metrics.silhouette_score(X, dbscan.labels_, metric='euclidean')
+    # Get the silhouette and calinski-harabaz scores to measure and compare the performance
+    silhouette = metrics.silhouette_score(X, dbscan.labels_)
+    calinski = metrics.calinski_harabasz_score(X, dbscan.labels_)
     
-    return df, silhouette
+    return df, silhouette, calinski
 
 min_pts = 2
 # Get the eps value for each dataset
@@ -778,22 +787,18 @@ eps_pop = get_dbscan_parameters(df_pop, min_pts)
 print('Housing')
 eps_hous = get_dbscan_parameters(df_hous, min_pts)
 # Run the DBSCAN model for each dataset
-df_env, silhouette_env['DBSCAN'] = apply_dbscan(df_env, eps_env, min_pts)
-df_pop, silhouette_pop['DBSCAN'] = apply_dbscan(df_pop, eps_pop, min_pts)
-df_hous, silhouette_hous['DBSCAN'] = apply_dbscan(df_hous, eps_hous, min_pts)
+df_env, silhouette_env['DBSCAN'], calinski_env['DBSCAN'] = apply_dbscan(df_env, eps_env, min_pts)
+df_pop, silhouette_pop['DBSCAN'], calinski_pop['DBSCAN'] = apply_dbscan(df_pop, eps_pop, min_pts)
+df_hous, silhouette_hous['DBSCAN'], calinski_hous['DBSCAN'] = apply_dbscan(df_hous, eps_hous, min_pts)
 ```
 
-```{python hidden=TRUE}
-df_hous[df_hous['Cluster_DBSCAN'] == -1].describe().round(1)
-```
-
-<!-- #region heading_collapsed=true -->
+<!-- #region heading_collapsed=true hidden=true -->
 ## Agglomerative clustering
 <!-- #endregion -->
 
 ```{python hidden=TRUE}
 def plot_dendrogram(df, title, select=None):
-    # Data scaling (drop columns with cluster labels for modelling)
+    # Data scaling (making sure to drop potential columns with cluster labels for modelling)
     cluster_columns = []
     for column in df.columns:
         if 'Cluster' in column:
@@ -802,7 +807,11 @@ def plot_dendrogram(df, title, select=None):
 
     plt.figure()
     plt.grid(axis='x')
-    plt.title('Dendrogram - ' + title)  
+    plt.title('Dendrogram - ' + title)
+    plt.xlabel('Samples', fontsize=16)
+    plt.ylabel('Distance', fontsize=16)
+    plt.xticks(fontsize=13)
+    plt.yticks(fontsize=13)
     dend = shc.dendrogram(shc.linkage(X, method='ward'))
     if select is not None:
         plt.axhline(y=select, color='m', linestyle='--')
@@ -815,7 +824,7 @@ plot_dendrogram(df_hous, 'Housing', 22.5)
 
 ```{python hidden=TRUE}
 def apply_agglomerative(df, n_cluster):
-    # Data scaling (drop columns with cluster labels for modelling)
+    # Data scaling (making sure to drop potential columns with cluster labels for modelling)
     cluster_columns = []
     for column in df.columns:
         if 'Cluster' in column:
@@ -825,25 +834,38 @@ def apply_agglomerative(df, n_cluster):
     agglo = AgglomerativeClustering(n_clusters=n_cluster, linkage='ward').fit(X)
     df['Cluster_Agglomerative'] = agglo.labels_
     # Get the silhouette score to measure and compare the performance
-    silhouette = metrics.silhouette_score(X, agglo.labels_, metric='euclidean')
+    silhouette = metrics.silhouette_score(X, agglo.labels_)
+    calinski = metrics.calinski_harabasz_score(X, agglo.labels_)
     
-    return df, silhouette
+    return df, silhouette, calinski
 
-df_env, silhouette_env['AgglomerativeClustering'] = apply_agglomerative(df_env, 3)
-df_pop, silhouette_pop['AgglomerativeClustering'] = apply_agglomerative(df_pop, 3)
-df_hous, silhouette_hous['AgglomerativeClustering'] = apply_agglomerative(df_hous, 2)
+df_env, silhouette_env['AgglomerativeClustering'], calinski_env['AgglomerativeClustering'] = apply_agglomerative(df_env, 3)
+df_pop, silhouette_pop['AgglomerativeClustering'], calinski_pop['AgglomerativeClustering'] = apply_agglomerative(df_pop, 3)
+df_hous, silhouette_hous['AgglomerativeClustering'], calinski_hous['AgglomerativeClustering'] = apply_agglomerative(df_hous, 2)
 ```
 
-<!-- #region heading_collapsed=true -->
 # Analysis
-<!-- #endregion -->
 
-```{python hidden=TRUE}
+
+Let's see the silhouette scores and Calinski-Harabaz indexes for the three data frames and the three models.
+
+```{python}
+print('Silhouette score - Environment data frame:\n', silhouette_env, '\n')
+print('Silhouette score - Population data frame:\n', silhouette_pop, '\n')
+print('Silhouette score - Housing data frame:\n', silhouette_hous, '\n')
+print('Calinski-Harabaz index - Environment data frame:\n', calinski_env, '\n')
+print('Calinski-Harabaz index - Population data frame:\n', calinski_pop, '\n')
+print('Calinski-Harabaz index - Housing data frame:\n', calinski_hous, '\n')
+```
+
+We will see a 2D projection of the data frames and their clusters.
+
+```{python}
 def plot_results(df, method, clusters, title):
     method_columns = {'K-Means': 'Cluster_kmeans',
                       'DBSCAN': 'Cluster_DBSCAN',
                       'Agglomerative Clustering': 'Cluster_Agglomerative'}
-    # Data scaling (drop columns with cluster labels for PCA)
+    # Data scaling (making sure to drop potential columns with cluster labels for PCA)
     cluster_columns = []
     for column in df.columns:
         if 'Cluster' in column:
@@ -853,13 +875,20 @@ def plot_results(df, method, clusters, title):
     pca = PCA(n_components=2).fit(X)
     pca_2d = pca.transform(X)
     
-    colors = ['r', 'b', 'g', 'c']
+    colors = ['r', 'b', 'g', 'c', 'k']
     legend = []
     for n in clusters:
             if n == -1:
                 legend.append('Outliers')
             else:
                 legend.append('Cluster ' + str(n))
+    if len(clusters) == 2:
+        for i in range(pca_2d.shape[0]):
+            if df.loc[i, method_columns[method]] == clusters[0]:
+                ax0 = plt.scatter(pca_2d[i,0], pca_2d[i,1], c=colors[0], marker='o')
+            if df.loc[i, method_columns[method]] == clusters[1]:
+                ax1 = plt.scatter(pca_2d[i,0], pca_2d[i,1], c=colors[1], marker='o')
+        plt.legend([ax0, ax1], legend, fontsize=13)
     if len(clusters) == 3:
         for i in range(pca_2d.shape[0]):
             if df.loc[i, method_columns[method]] == clusters[0]:
@@ -868,7 +897,7 @@ def plot_results(df, method, clusters, title):
                 ax1 = plt.scatter(pca_2d[i,0], pca_2d[i,1], c=colors[1], marker='o')
             if df.loc[i, method_columns[method]] == clusters[2]:
                 ax2 = plt.scatter(pca_2d[i,0], pca_2d[i,1], c=colors[2], marker='o')
-        plt.legend([ax0, ax1, ax2], legend)
+        plt.legend([ax0, ax1, ax2], legend, fontsize=13)
     if len(clusters) == 4:
         for i in range(pca_2d.shape[0]):
             if df.loc[i, method_columns[method]] == clusters[0]:
@@ -879,13 +908,18 @@ def plot_results(df, method, clusters, title):
                 ax2 = plt.scatter(pca_2d[i,0], pca_2d[i,1], c=colors[2], marker='o')
             if df.loc[i, method_columns[method]] == clusters[3]:
                 ax3 = plt.scatter(pca_2d[i,0], pca_2d[i,1], c=colors[3], marker='o')
-        plt.legend([ax0, ax1, ax2, ax3], legend)
+        plt.legend([ax0, ax1, ax2, ax3], legend, fontsize=13)
     plt.title(method + ' - ' + title)
-    print('Pourcentage of information carried by the dimension-reduced data: ' +
+    plt.xlabel('Principal Component 1', fontsize=14)
+    plt.ylabel('Principal Component 2', fontsize=14)
+    plt.xticks(fontsize=13)
+    plt.yticks(fontsize=13)
+    print('Percentage of information carried by the dimension-reduced data: ' +
           str(round(pca.explained_variance_ratio_.sum()*100, 2)) + ' %')
     plt.show()
+```
 
-
+```{python}
 df = df_env
 method = 'K-Means'
 clusters = [0, 1, 2]
@@ -893,7 +927,13 @@ title = 'Environment'
 plot_results(df, method, clusters, title)
 ```
 
-```{python hidden=TRUE}
+Let's now see the results of the K-Means model for the three data frames by looking at the main statistics and a map showing the clusters.
+
+```{python}
+df_env[df_env['Cluster_kmeans'] == 0].describe().round(1)
+```
+
+```{python}
 env_map = folium.Map(location=[latitude, longitude], zoom_start=10, tiles=None)
 folium.TileLayer('CartoDB positron',name="Light Map",control=False).add_to(env_map)
 folium.Choropleth(
@@ -911,6 +951,42 @@ folium.Choropleth(
 env_map
 ```
 
-```{python hidden=TRUE}
+```{python}
+pop_map = folium.Map(location=[latitude, longitude], zoom_start=10, tiles=None)
+folium.TileLayer('CartoDB positron',name="Light Map",control=False).add_to(pop_map)
+folium.Choropleth(
+    geo_data=mtl_grp_geo_json,
+    data=df_pop,
+    columns=['FSA', 'Cluster_kmeans'],
+    key_on='feature.properties.FSAGROUP',
+    fill_color='RdYlBu',
+    fill_opacity=0.7, 
+    line_opacity=0.2,
+    bins=[0, 1, 2, 3],
+    legend_name='Cluster',
+).add_to(pop_map)
+
+pop_map
+```
+
+```{python}
+hous_map = folium.Map(location=[latitude, longitude], zoom_start=10, tiles=None)
+folium.TileLayer('CartoDB positron',name="Light Map",control=False).add_to(hous_map)
+folium.Choropleth(
+    geo_data=mtl_grp_geo_json,
+    data=df_hous,
+    columns=['FSA', 'Cluster_kmeans'],
+    key_on='feature.properties.FSAGROUP',
+    fill_color='RdYlBu',
+    fill_opacity=0.7, 
+    line_opacity=0.2,
+    bins=[0, 1, 2, 3, 4],
+    legend_name='Cluster',
+).add_to(hous_map)
+
+hous_map
+```
+
+```{python}
 
 ```
