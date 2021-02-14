@@ -241,7 +241,7 @@ ws = pd.read_csv('../data/walkscore/walkscore.csv', index_col=0)
 # Choose the score to visualize
 score = 'Walkscore' # 'Walkscore' or 'Transitscore' or 'Bikescore'
 
-# Built the map
+# Build the map
 nan_ws_map = folium.Map(location=[latitude, longitude], zoom_start=10, tiles=None)
 folium.TileLayer('CartoDB positron',name="Light Map",control=False).add_to(nan_ws_map)
 for lat, lng, score in zip(ws['Latitude'], ws['Longitude'], ws[score]):
@@ -505,16 +505,16 @@ def pareto_chart(df, column, ylabel):
     fig, ax = plt.subplots(figsize=(20,10))
     ax.bar(df_bar['FSA'], df_bar[column])
     ax.grid(axis='x')
-    ax.tick_params(axis='x', labelrotation=90, labelsize=12)
-    ax.tick_params(axis='y', labelsize=14)
-    ax.set_xlabel('FSAs', fontsize=16)
-    ax.set_ylabel(ylabel, fontsize=16)
+    ax.tick_params(axis='x', labelrotation=90, labelsize=13)
+    ax.tick_params(axis='y', labelsize=16)
+    ax.set_xlabel('FSAs', fontsize=18)
+    ax.set_ylabel(ylabel, fontsize=18)
     ax2 = ax.twinx()
     ax2.plot(df_bar['FSA'], df_bar['Cumulative'], color='red')
     ax2.yaxis.set_major_formatter(PercentFormatter())
     ax2.grid(False)
-    ax2.tick_params(labelsize=14)
-    ax2.set_ylabel('Cumulative percentages', fontsize=14)
+    ax2.tick_params(labelsize=16)
+    ax2.set_ylabel('Cumulative percentages', fontsize=18)
 
     
 def plot_hist(df, column, bins, decimals, xlabel):
@@ -524,10 +524,10 @@ def plot_hist(df, column, bins, decimals, xlabel):
     df[column].plot(kind='hist', xticks=round_bin_edges, bins=bins, weights=np.ones(n) / n,
                     grid=False, rwidth=0.9)
     plt.gca().yaxis.set_major_formatter(PercentFormatter(1))
-    plt.xticks(fontsize=12)
-    plt.yticks(fontsize=12)
-    plt.xlabel(xlabel, fontsize=13)
-    plt.ylabel('Frequency', fontsize=13)
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
+    plt.xlabel(xlabel, fontsize=15)
+    plt.ylabel('Frequency', fontsize=15)
     plt.grid(axis='y', alpha=0.75)
 ```
 
@@ -571,7 +571,7 @@ ws_map
 Let's see a pareto chart of the restaurants and bars in Montreal.
 
 ```{python}
-pareto_chart(df_env, 'RestaurantBar', 'Density of Restaurants and Bars')
+pareto_chart(df_env, 'RestaurantBar', 'Density of restaurants and bars')
 ```
 
 Let's see a histogram of the PPS in Montreal.
@@ -601,7 +601,7 @@ plot_hist(df_pop, 'Age', 10, 1, 'Median age of population')
 Let's see a pareto chart of the value of the real estate properties.
 
 ```{python}
-pareto_chart(df_hous, 'Value($)', 'Average value ($) of the real estate properties')
+pareto_chart(df_hous, 'Value($)', 'Average value ($) of the properties')
 ```
 
 Let's see a histogram of the average number of rooms in the dwellings.
@@ -693,6 +693,11 @@ def get_dbscan_parameters(df, min_pts):
     ax1.plot(EPS, nb_outliers, 'r-')
     ax1.tick_params(axis='y', labelcolor='r', labelsize=13)
     ax1.tick_params(labelsize=13)
+    # Show the selected point
+    plt.axvline(x=eps, color='k', linestyle=':')
+    y1 = nb_outliers[np.where(EPS == eps)[0][0]]
+    left, right = plt.xlim()
+    plt.axhline(y=y1, xmin=0, xmax=eps/right, color='k', linestyle=':')
     # Number of clusters
     ax2 = ax1.twinx()
     ax2.set_ylabel('Number of clusters', color='b', fontsize=16)
@@ -701,8 +706,8 @@ def get_dbscan_parameters(df, min_pts):
     ax2.tick_params(labelsize=13)
     ax2.grid(False)
     # Show the selected point
-    plt.axvline(x=eps, color='grey', linestyle=':')
-    plt.axhline(y=nb_clusters[np.where(EPS == eps)[0][0]], color='grey', linestyle=':')
+    y2 = nb_clusters[np.where(EPS == eps)[0][0]]
+    plt.axhline(y=y2, xmin=eps/right, xmax=1, color='k', linestyle=':')
     plt.show()
     
     
