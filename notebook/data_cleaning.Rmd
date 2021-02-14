@@ -28,19 +28,15 @@ import scipy.cluster.hierarchy as shc
 from sklearn.decomposition import PCA
 ```
 
-<!-- #region heading_collapsed=true -->
 # Getting and cleaning the data
-<!-- #endregion -->
 
-<!-- #region heading_collapsed=true hidden=true -->
+
 ## Correspondence between the FSAs of 2016 and 2020
-<!-- #endregion -->
 
-<!-- #region hidden=true -->
+
 The FSAs have evolved since the census in 2016. The main part of them is similar, but some have changed. So, we will group the FSAs that have changed in order to have similar territories for the data from 2016 and the data from 2020.
-<!-- #endregion -->
 
-```{python hidden=TRUE}
+```{python}
 def process_fsa(fsa, year):
     if year == 2020:
         fsas = {'H3A': 'H3A-H3B', 'H3B': 'H3A-H3B',
@@ -61,11 +57,9 @@ def process_fsa(fsa, year):
         return fsa
 ```
 
-<!-- #region heading_collapsed=true hidden=true -->
 ## Foursquare
-<!-- #endregion -->
 
-```{python hidden=TRUE}
+```{python}
 # Export the foursquare dataset
 foursquare = pd.read_csv('../data/foursquare/all.csv')
 
@@ -123,11 +117,9 @@ foursquare = foursquare[['FSA', 'id', 'Category']].groupby(['FSA', 'Category']).
 foursquare.head()
 ```
 
-<!-- #region heading_collapsed=true hidden=true -->
 ## STM
-<!-- #endregion -->
 
-```{python hidden=TRUE}
+```{python}
 # Read the CSV file with the metro stations per FSA
 metro_stations = pd.read_csv('../data/metro/metro_stations.csv', index_col=0)
 # Process the FSA to make correspondance between 2016 and 2020
@@ -137,11 +129,9 @@ metro_stations = metro_stations.groupby(['FSA']).agg(MetroStations=('Name', 'cou
 metro_stations.head()
 ```
 
-<!-- #region heading_collapsed=true hidden=true -->
 ## Daycares
-<!-- #endregion -->
 
-```{python hidden=TRUE}
+```{python}
 # Get the data from the CSV file
 daycare = pd.read_csv('../data/daycare/liste-des-services-de-garde-07.csv', engine='python')
 
@@ -161,11 +151,9 @@ daycare = daycare.groupby(['FSA']).agg(Daycare=('ADRESSE','count')).reset_index(
 daycare.head()
 ```
 
-<!-- #region heading_collapsed=true hidden=true -->
 ## Schools
-<!-- #endregion -->
 
-```{python hidden=TRUE}
+```{python}
 # Get the data from the CSV files
 college = pd.read_csv('../data/schools/ES_Collegial.csv', sep=';')
 univ = pd.read_csv('../data/schools/ES_Universitaire.csv', sep=';')
@@ -235,15 +223,12 @@ schools = schools.groupby(['FSA', 'SchoolType']).agg(NbSchool=('SchoolId','count
 schools.head()
 ```
 
-<!-- #region heading_collapsed=true hidden=true -->
 ## Walk score
-<!-- #endregion -->
 
-<!-- #region hidden=true -->
+
 Let's see all the available and not available walk scores, transit scores and bike scores on the map.
-<!-- #endregion -->
 
-```{python hidden=TRUE}
+```{python}
 # Data for Montreal
 latitude = 45.535433
 longitude = -73.636493
@@ -278,11 +263,9 @@ for lat, lng, score in zip(ws['Latitude'], ws['Longitude'], ws[score]):
 nan_ws_map
 ```
 
-<!-- #region hidden=true -->
 The available walk scores and bike scores can be processed but the transit scores are not relevant because they are too concentrated on a single geographic area.
-<!-- #endregion -->
 
-```{python hidden=TRUE}
+```{python}
 # Process the FSA to make correspondance between 2016 and 2020
 ws['FSA'] = ws['FSA'].apply(lambda x: process_fsa(x, 2016))
 # Get the mean score for each FSA
@@ -292,11 +275,9 @@ walkscore.drop(columns='Transitscore', inplace=True)
 walkscore.head()
 ```
 
-<!-- #region heading_collapsed=true hidden=true -->
 ## Census
-<!-- #endregion -->
 
-```{python hidden=TRUE}
+```{python}
 # Get the census data
 census = pd.read_csv('../data/census/census_20200808_1501.csv', index_col=0)
 for fsa in ['H4T', 'H4Y', 'H4Z', 'H5A', 'H5B']:
@@ -306,11 +287,9 @@ census['FSA'] = census['FSA'].apply(lambda x: process_fsa(x, 2016))
 census.head()
 ```
 
-<!-- #region heading_collapsed=true -->
 # Creating the master data frames
-<!-- #endregion -->
 
-```{python hidden=TRUE}
+```{python}
 # Get the average of a column, weighted by another
 def weighted_average(df, df_weight, field):
     df = df.join(df_weight.set_index('FSA'), on='FSA')
@@ -323,11 +302,9 @@ def weighted_average(df, df_weight, field):
     return df[['FSA', field]]
 ```
 
-<!-- #region heading_collapsed=true hidden=true -->
 ## Environment data frame
-<!-- #endregion -->
 
-```{python hidden=TRUE}
+```{python}
 # Get the FSA with their areas to create the master data frame for the FSA environment
 df_env = pd.read_csv('../data/fsa_areas.csv', index_col=0)
 # Process the FSA to make correspondance between 2016 and 2020
@@ -370,11 +347,9 @@ df_env.drop(columns=['Area(km2)'], inplace=True)
 df_env.round(2).head()
 ```
 
-<!-- #region heading_collapsed=true hidden=true -->
 ## Population data frame
-<!-- #endregion -->
 
-```{python hidden=TRUE}
+```{python}
 # Get the FSA with their areas to create the master data frame for the FSA population
 df_pop = pd.read_csv('../data/fsa_areas.csv', index_col=0)
 # Process the FSA to make correspondance between 2016 and 2020
@@ -427,11 +402,9 @@ df_pop.drop(columns=['Area(km2)'], inplace=True)
 df_pop.round(2).head()
 ```
 
-<!-- #region heading_collapsed=true hidden=true -->
 ## Housing data frame
-<!-- #endregion -->
 
-```{python hidden=TRUE}
+```{python}
 # Get the FSA with their areas to create the master data frame for the FSA housing
 df_hous = pd.read_csv('../data/fsa_areas.csv', index_col=0)
 # Process the FSA to make correspondance between 2016 and 2020
@@ -519,15 +492,12 @@ df_hous.drop(columns=['Area(km2)'], inplace=True)
 df_hous.round(2).head()
 ```
 
-<!-- #region heading_collapsed=true -->
 # Data exploratory analysis
-<!-- #endregion -->
 
-<!-- #region hidden=true -->
+
 We create functions to plot pareto charts and histograms.
-<!-- #endregion -->
 
-```{python hidden=TRUE}
+```{python}
 def pareto_chart(df, column, ylabel):
     
     df_bar = df[['FSA', column]].sort_values(by=[column], ascending=False)
@@ -561,11 +531,9 @@ def plot_hist(df, column, bins, decimals, xlabel):
     plt.grid(axis='y', alpha=0.75)
 ```
 
-<!-- #region heading_collapsed=true hidden=true -->
 ## Environment data frame
-<!-- #endregion -->
 
-<!-- #region hidden=true -->
+
 Let's see the choropleth map of Montreal for the walk scores. Here are the groups values and descriptions:
 
 - 0-25: Car-dependent *(almost all errands require a car)*
@@ -573,9 +541,8 @@ Let's see the choropleth map of Montreal for the walk scores. Here are the group
 - 50-70: Somewhat walkable *(some errands can be accomplished on foot)*
 - 70-90: Very walkable *(most errands can be accomplished on foot)*
 - 90-100: Walker's paradise *(daily errands do not require a car)*
-<!-- #endregion -->
 
-```{python hidden=TRUE}
+```{python}
 # Data for Montreal
 latitude = 45.535433
 longitude = -73.636493
@@ -601,67 +568,51 @@ folium.Choropleth(
 ws_map
 ```
 
-<!-- #region hidden=true -->
 Let's see a pareto chart of the restaurants and bars in Montreal.
-<!-- #endregion -->
 
-```{python hidden=TRUE}
+```{python}
 pareto_chart(df_env, 'RestaurantBar', 'Density of Restaurants and Bars')
 ```
 
-<!-- #region hidden=true -->
 Let's see a histogram of the PPS in Montreal.
-<!-- #endregion -->
 
-```{python hidden=TRUE}
+```{python}
 plot_hist(df_env, 'PPS', 15, 0, 'Density of PPS')
 ```
 
-<!-- #region heading_collapsed=true hidden=true -->
 ## Population data frame
-<!-- #endregion -->
 
-<!-- #region hidden=true -->
+
 Let's see a pareto chart of the density of population.
-<!-- #endregion -->
 
-```{python hidden=TRUE}
+```{python}
 pareto_chart(df_pop, 'Population', 'Density of population')
 ```
 
-<!-- #region hidden=true -->
 Let's see a histogram of the age of population.
-<!-- #endregion -->
 
-```{python hidden=TRUE}
+```{python}
 plot_hist(df_pop, 'Age', 10, 1, 'Median age of population')
 ```
 
-<!-- #region heading_collapsed=true hidden=true -->
 ## Housing data frame
-<!-- #endregion -->
 
-<!-- #region hidden=true -->
+
 Let's see a pareto chart of the value of the real estate properties.
-<!-- #endregion -->
 
-```{python hidden=TRUE}
+```{python}
 pareto_chart(df_hous, 'Value($)', 'Average value ($) of the real estate properties')
 ```
 
-<!-- #region hidden=true -->
 Let's see a histogram of the average number of rooms in the dwellings.
-<!-- #endregion -->
 
-```{python hidden=TRUE}
+```{python}
 plot_hist(df_hous, 'NbRooms', 10, 1, 'Average number of rooms in the dwellings')
 ```
 
-<!-- #region heading_collapsed=true -->
 # Clustering
-<!-- #endregion -->
 
-```{python hidden=TRUE}
+```{python}
 silhouette_env = {}
 silhouette_pop = {}
 silhouette_hous = {}
@@ -670,11 +621,9 @@ calinski_pop = {}
 calinski_hous = {}
 ```
 
-<!-- #region heading_collapsed=true hidden=true -->
 ## K-Means
-<!-- #endregion -->
 
-```{python hidden=TRUE}
+```{python}
 def apply_kmeans(df):
     # Data scaling (making sure to drop potential columns with cluster labels for modelling)
     cluster_columns = []
@@ -703,11 +652,9 @@ print('Housing')
 df_hous, silhouette_hous['kmeans'], calinski_hous['kmeans'] = apply_kmeans(df_hous)
 ```
 
-<!-- #region heading_collapsed=true hidden=true -->
 ## DBSCAN
-<!-- #endregion -->
 
-```{python hidden=TRUE}
+```{python}
 def get_dbscan_parameters(df, min_pts):
     eps_min = 0.1
     eps_max = 3.2
@@ -792,11 +739,9 @@ df_pop, silhouette_pop['DBSCAN'], calinski_pop['DBSCAN'] = apply_dbscan(df_pop, 
 df_hous, silhouette_hous['DBSCAN'], calinski_hous['DBSCAN'] = apply_dbscan(df_hous, eps_hous, min_pts)
 ```
 
-<!-- #region heading_collapsed=true hidden=true -->
 ## Agglomerative clustering
-<!-- #endregion -->
 
-```{python hidden=TRUE}
+```{python}
 def plot_dendrogram(df, title, select=None):
     # Data scaling (making sure to drop potential columns with cluster labels for modelling)
     cluster_columns = []
@@ -822,7 +767,7 @@ plot_dendrogram(df_pop, 'Population', 12.5)
 plot_dendrogram(df_hous, 'Housing', 22.5)
 ```
 
-```{python hidden=TRUE}
+```{python}
 def apply_agglomerative(df, n_cluster):
     # Data scaling (making sure to drop potential columns with cluster labels for modelling)
     cluster_columns = []
