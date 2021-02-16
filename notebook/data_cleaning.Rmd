@@ -694,10 +694,10 @@ def get_dbscan_parameters(df, min_pts):
     ax1.tick_params(axis='y', labelcolor='r', labelsize=13)
     ax1.tick_params(labelsize=13)
     # Show the selected point
-    plt.axvline(x=eps, color='k', linestyle=':')
+    plt.axvline(x=eps, color='k', linestyle='--')
     y1 = nb_outliers[np.where(EPS == eps)[0][0]]
     left, right = plt.xlim()
-    plt.axhline(y=y1, xmin=0, xmax=eps/right, color='k', linestyle=':')
+    plt.axhline(y=y1, xmin=0, xmax=eps/right, color='k', linestyle='--')
     # Number of clusters
     ax2 = ax1.twinx()
     ax2.set_ylabel('Number of clusters', color='b', fontsize=16)
@@ -707,7 +707,7 @@ def get_dbscan_parameters(df, min_pts):
     ax2.grid(False)
     # Show the selected point
     y2 = nb_clusters[np.where(EPS == eps)[0][0]]
-    plt.axhline(y=y2, xmin=eps/right, xmax=1, color='k', linestyle=':')
+    plt.axhline(y=y2, xmin=eps/right, xmax=1, color='k', linestyle='--')
     plt.show()
     
     
