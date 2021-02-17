@@ -298,7 +298,7 @@ schools.head()
 ### Walk score
 
 
-A  map  of  the  Island  of  Montreal’s  FSAs  is  created  with  QGIS  software  using  the  2016 Census Boundary file available on the Statistics Canada website. Then random points are generated with QGIS software for each FSA. The number of generated points depends on the size of each FSA to guarantee an equivalent point density. A python code computes the walk score, transit score and bike score for each generated points, using the Walk Score API, and finally a dataset containing the following information was built.
+A  map  of  the  Island  of  Montreal’s  FSAs  is  created  with  QGIS  software  using  the  2016 Census Boundary file available on the Statistics Canada website. Then random points are generated with QGIS software for each FSA. The number of generated points depends on the size of each FSA to guarantee an equivalent point density. A python code computes the walk score, transit score and bike score for each generated points, using the Walk Score API, and finally a dataset containing the following information is built.
 
 As the walk scores, transit scores and bike scores are obtained using the API from randomly created points in the Island of Montreal, we need to ensure the score is available for enough points in the island. Therefore, we visualize the available and unavailable scores on a map for the walk score, bike score and transit score.
 
@@ -822,11 +822,19 @@ def apply_kmeans(df):
 ```
 
 ```{python}
-# Apply K-Means function for each dataset
+# Apply K-Means function for environment dataset
 print('Environment')
 df_env, silhouette_env['kmeans'], calinski_env['kmeans'] = apply_kmeans(df_env)
+```
+
+```{python}
+# Apply K-Means function for population dataset
 print('Population')
 df_pop, silhouette_pop['kmeans'], calinski_pop['kmeans'] = apply_kmeans(df_pop)
+```
+
+```{python}
+# Apply K-Means function for housing dataset
 print('Housing')
 df_hous, silhouette_hous['kmeans'], calinski_hous['kmeans'] = apply_kmeans(df_hous)
 ```
@@ -1075,12 +1083,13 @@ def plot_results(df, method, clusters, title):
 ```
 
 ```{python}
-# Plot the 2D projection of the clustering results ofK-Means and agglomerative clustering for the three datasets
-df = df_env
-method = 'K-Means'
-clusters = [0, 1, 2]
-title = 'Environment'
-plot_results(df, method, clusters, title)
+# Plot the 2D projection of the clustering results of K-Means and agglomerative clustering for the three datasets
+plot_results(df_env, 'K-Means', [0, 1, 2], 'Environment')
+plot_results(df_env, 'Agglomerative Clustering', [0, 1, 2], 'Environment')
+plot_results(df_pop, 'K-Means', [0, 1, 2], 'Population')
+plot_results(df_pop, 'Agglomerative Clustering', [0, 1, 2], 'Population')
+plot_results(df_hous, 'K-Means', [0, 1, 2, 3], 'Housing')
+plot_results(df_hous, 'Agglomerative Clustering', [0, 1], 'Housing')
 ```
 
 The two dimensions projection for the environment dataset highlights that the points from the two biggest clusters obtained with the agglomerative clustering are quite mixed, whereas the clusters obtained with the K-Means method are fairly distinct. For the population dataset, the same observation can be made. As the number of clusters built by the two approaches is different for the housing dataset, it is difficult to compare the resulting clusters. However, according to the two dimensions projection they seem well separated in both cases.
