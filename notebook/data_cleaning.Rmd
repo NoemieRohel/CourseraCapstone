@@ -12,7 +12,42 @@ jupyter:
     name: python3
 ---
 
+<h1><center>Clustering of the Island of Montreal</center></h1>
+
+
+<h1>Table of contents</h1>
+
+* [Introduction](#introduction)
+* [Data collection](#data)
+* [Data exploratory analysis](#exploratory)
+* [Clustering](#clustering)
+* [Comparison between the models](#comparison)
+* [Clustering results](#results)
+* [Discussion](#discussion)
+* [Conclusion](#conclusion)
+
+
+<h1>Introduction: Business Problem <a name="introduction"></a></h1>
+
+
+The neighborhoods of a city, especially the large ones, may be very different; the population, the real estate and the accessible venues can vary a lot even within the same area. However, most of the neighborhoods share a lot of characteristics with others. Therefore to have a quick and easy to understand description of a city, it would be interesting to identify the different kinds of neighborhoods and to associate all of them to a specific profile. This project aims to help people who want to move in to select the best place or people who want to start a business to select the best location. This study is addressing this issue for Montreal.
+
+**The project aims to cluster the Island of Montreal into similar neighborhoods based on the environment (density of restaurants, bars, cultural activities, schools, ...), the population (density of population, age, income, ...) and the housing (value, type of dwellings, ...).** For each of these categories, a set of specific features is selected and a clustering method is used to gather the similar neighborhoods. Three clustering approaches are considered and implemented: K-Means, DBSCAN and agglomerative clustering, and the results are compared to identify the best method.
+
+First, the data sources used for this project are presented, as well as the required data cleaning and preprocessing. An exploratory data analysis is conducted to highlight some preliminary observations about the collected data. Then for the three clustering approaches considered, a short description and a parameters selection is performed and the results are used to compare the methods. Finally, the clusters obtained with the best approach are described and analysed.
+
+
+# Data collection <a name="data"></a>
+
+
+In the context of this project, the considered subdivision of the Island of Montreal is the Forward Sortation Area (FSA), the first three characters of a postal code. Different datasets and APIs are used to get relevant data about each FSA.
+
+
+## Data cleaning
+
 ```{python}
+# Import the libraries
+
 import pandas as pd
 import numpy as np
 import json
@@ -28,16 +63,14 @@ import scipy.cluster.hierarchy as shc
 from sklearn.decomposition import PCA
 ```
 
-# Getting and cleaning the data
+### Correspondence between the FSAs of 2016 and 2020
 
 
-## Correspondence between the FSAs of 2016 and 2020
-
-
-The FSAs have evolved since the census in 2016. The main part of them is similar, but some have changed. So, we will group the FSAs that have changed in order to have similar territories for the data from 2016 and the data from 2020.
+The map of the FSAs has evolved between 2016 and 2020, the boundaries of some FSAs have shifted and new FSAs have been created. As we are using data from 2016 and 2020, we need to create FSA groups to have similar territories for all datasets.
 
 ```{python}
 def process_fsa(fsa, year):
+    # Process FSAs to get the corresponding FSA group
     if year == 2020:
         fsas = {'H3A': 'H3A-H3B', 'H3B': 'H3A-H3B',
                 'H8S': 'H8S-H8T', 'H8T': 'H8S-H8T',
@@ -57,17 +90,15 @@ def process_fsa(fsa, year):
         return fsa
 ```
 
-## Foursquare
+### Foursquare
+
+
+The  Foursquare  API  is  used  to  obtain  all  venues  in  a  specific  FSA. A python code build a dataset containing the information of the venues of all FSAs using this API. We get this dataset and clean it for the project.
+For the need of this project, the venues must be gathered in categories. Foursquare already provides a category for the venues, but it is too specific. That is why we create general categories and link them to the Foursquare categories.
 
 ```{python}
-# Export the foursquare dataset
-foursquare = pd.read_csv('../data/foursquare/all.csv')
-
-# Drop duplicates
-foursquare.drop_duplicates(subset = 'id', inplace=True, ignore_index=True)
-
-# Process the data to group categories
 def process_categories(category_name):
+    # Group the foursquare data into general categories
     
     # Restaurant and Bar
     restaurant = ['restaurant', 'bar', 'café', 'cafe', 'coffee', 'pizza', 'sandwich', 'breakfast spot', 'ice cream',
@@ -108,74 +139,91 @@ def process_categories(category_name):
         category = 'Other'
 
     return 'Other'
+```
 
+```{python}
+# Export the foursquare dataset
+foursquare = pd.read_csv('../data/foursquare/all.csv')
+
+# Drop duplicates
+foursquare.drop_duplicates(subset = 'id', inplace=True, ignore_index=True)
+
+# Get the general categories
 foursquare['Category'] = foursquare['category_name'].apply(process_categories)
+
 # Process the FSA to make correspondance between 2016 and 2020
 foursquare['FSA'] = foursquare['FSA'].apply(lambda x: process_fsa(x, 2020))
+
 # Group by categories to get the number of venues for each category per FSA
 foursquare = foursquare[['FSA', 'id', 'Category']].groupby(['FSA', 'Category']).agg(NbVenue=('id','count')).reset_index()
 foursquare.head()
 ```
 
-## STM
+### STM
+
+
+Portail données ouvertes Montréal is the City of Montreal's open data portal. It is used to access the map of bus and metro routes of the STM, the transportation company of Montreal. Using QGIS software, we isolate the name and coordinates of all metro stations. Then, in a python code, we use the reverse function of the Nominatim GeoPy's geocoder to get the address and the FSA of the metro stations from their coordinates. Finally, a dataset with the name, coordinates and FSA of the metro stations is built and read here.
 
 ```{python}
 # Read the CSV file with the metro stations per FSA
 metro_stations = pd.read_csv('../data/metro/metro_stations.csv', index_col=0)
+
 # Process the FSA to make correspondance between 2016 and 2020
 metro_stations['FSA'] = metro_stations['FSA'].apply(lambda x: process_fsa(x, 2020))
+
 # Group by FSA to get the number of stations per FSA
 metro_stations = metro_stations.groupby(['FSA']).agg(MetroStations=('Name', 'count')).reset_index()
 metro_stations.head()
 ```
 
-## Daycares
+### Daycares
+
+
+The dataset of all daycares in Quebec is available in Partenariat Données Québec (Quebec government's open data portal). Only the ones with a postal code beginning with a FSA of the Island of Montreal are kept.
+
+```{python}
+def mtl_fsa(postal_code):
+    # Keep only the postal codes of the Montreal island
+    if postal_code[0:2] in ['H1', 'H2', 'H3', 'H4', 'H5', 'H8', 'H9']:
+        return True
+    else:
+        return False
+```
 
 ```{python}
 # Get the data from the CSV file
 daycare = pd.read_csv('../data/daycare/liste-des-services-de-garde-07.csv', engine='python')
 
 # Keep only the daycares in the Montreal island
-def mtl_fsa(postal_code):
-    if postal_code[0:2] in ['H1', 'H2', 'H3', 'H4', 'H5', 'H8', 'H9']:
-        return True
-    else:
-        return False
 daycare = daycare[daycare['CODE_POSTAL_COMPO'].apply(mtl_fsa)].reset_index(drop=True)
 daycare['FSA'] = daycare['CODE_POSTAL_COMPO'].apply(lambda x: x[0:3])
 
 # Process the FSA to make correspondance between 2016 and 2020
 daycare['FSA'] = daycare['FSA'].apply(lambda x: process_fsa(x, 2020))
+
 # Group by FSA to get the number of daycares per FSA
 daycare = daycare.groupby(['FSA']).agg(Daycare=('ADRESSE','count')).reset_index()
 daycare.head()
 ```
 
-## Schools
+### Schools
+
+
+The selected datasets related to the educational institutions available on the Quebec gov-ernment’s open data portal are the following.
+- College educational institutions
+- University educational institutions
+- Government educational institutions for preschool, primary and secondary education,and professional and adult training
+- Private facilities for preschool, primary and secondary education, and professional andadult training
+- Public schools for preschool, primary and secondary education, and professional andadult training
+
+Only  educational  institutions  with  a  postal  code  beginning  with  a  FSA  of  the  Island  of Montreal are kept. Some institutions gather several levels of education that need to be broken down. For this project, the educational levels considered are the following.
+- Preschool, primary and secondary education grouped in PPS
+- College and university grouped in PostSecondary
+- Adult education and professional training grouped in ProfessionalTraining-AdultEducation
 
 ```{python}
-# Get the data from the CSV files
-college = pd.read_csv('../data/schools/ES_Collegial.csv', sep=';')
-univ = pd.read_csv('../data/schools/ES_Universitaire.csv', sep=';')
-pps_gouv = pd.read_csv('../data/schools/PPS_Gouvernemental.csv', sep=';')
-pps_prive = pd.read_csv('../data/schools/PPS_Prive_Installation.csv', sep=';')
-pps_public = pd.read_csv('../data/schools/PPS_Public_Ecole.csv', sep=';')
-pps_public.rename(columns={'CD_POSTL_GDUNO_ORGNS': 'CD_POSTL_GDUNO'}, inplace=True)
-
-# Keep only the schools in the Montreal island
-def mtl_fsa(postal_code):
-    if postal_code[0:2] in ['H1', 'H2', 'H3', 'H4', 'H5', 'H8', 'H9']:
-        return True
-    else:
-        return False
-college = college[college['CD_POSTL_GDUNO'].apply(mtl_fsa)].reset_index(drop=True)
-univ = univ[univ['CD_POSTL_GDUNO'].apply(mtl_fsa)].reset_index(drop=True)
-pps_gouv = pps_gouv[pps_gouv['CD_POSTL_GDUNO'].apply(mtl_fsa)].reset_index(drop=True)
-pps_prive = pps_prive[pps_prive['CD_POSTL_GDUNO'].apply(mtl_fsa)].reset_index(drop=True)
-pps_public = pps_public[pps_public['CD_POSTL_GDUNO'].apply(mtl_fsa)].reset_index(drop=True)
-
-# Duplicate rows with multiple school levels and separate the name to have one row for one school level
 def school_level(school):
+    # Duplicate rows with multiple school levels and separate the name to have one row for one school level
     for i in school.index:
         s = school.loc[i, 'ORDRE_ENS'].split('-')
         if len(s) > 1:
@@ -192,6 +240,37 @@ def school_level(school):
     school.sort_values(by=['OBJECTID'], inplace=True)
     school.reset_index(drop=True, inplace=True)
     return school
+```
+
+```{python}
+def classify_school_levels(level):
+    # Classify the school level into the three categories:
+    # PPS, Post-secondary and Professional Training - Adult Education
+    if level in ['Préscolaire', 'Primaire', 'Secondaire']:
+        return 'PPS'
+    if level in ['Collégial', 'Universitaire']:
+        return 'PostSecondary'
+    if level in ['Éducation aux adultes', 'Formation professionnelle']:
+        return 'ProfessionalTraining-AdultEducation'
+```
+
+```{python}
+# Get the data from the CSV files
+college = pd.read_csv('../data/schools/ES_Collegial.csv', sep=';')
+univ = pd.read_csv('../data/schools/ES_Universitaire.csv', sep=';')
+pps_gouv = pd.read_csv('../data/schools/PPS_Gouvernemental.csv', sep=';')
+pps_prive = pd.read_csv('../data/schools/PPS_Prive_Installation.csv', sep=';')
+pps_public = pd.read_csv('../data/schools/PPS_Public_Ecole.csv', sep=';')
+pps_public.rename(columns={'CD_POSTL_GDUNO_ORGNS': 'CD_POSTL_GDUNO'}, inplace=True)
+
+# Keep only the schools in the Montreal island
+college = college[college['CD_POSTL_GDUNO'].apply(mtl_fsa)].reset_index(drop=True)
+univ = univ[univ['CD_POSTL_GDUNO'].apply(mtl_fsa)].reset_index(drop=True)
+pps_gouv = pps_gouv[pps_gouv['CD_POSTL_GDUNO'].apply(mtl_fsa)].reset_index(drop=True)
+pps_prive = pps_prive[pps_prive['CD_POSTL_GDUNO'].apply(mtl_fsa)].reset_index(drop=True)
+pps_public = pps_public[pps_public['CD_POSTL_GDUNO'].apply(mtl_fsa)].reset_index(drop=True)
+
+# Duplicate rows with multiple school levels and separate the name to have one row for one school level
 pps_prive = school_level(pps_prive)
 pps_public = school_level(pps_public)
 
@@ -204,47 +283,38 @@ schools = pd.concat([college[['OBJECTID', 'CD_POSTL_GDUNO', 'ORDRE_ENS']],
 schools['CD_POSTL_GDUNO'] = schools['CD_POSTL_GDUNO'].apply(lambda x: x[0:3])
 schools.rename(columns={'OBJECTID': 'SchoolId', 'CD_POSTL_GDUNO': 'FSA', 'ORDRE_ENS': 'Level'}, inplace=True)
 
-# Classify the school level into three categories: PPS (Preschool, Primary school and Secondary school),
-# Post-secondary and Professional Training - Adult Education
-def classify_school_levels(level):
-    if level in ['Préscolaire', 'Primaire', 'Secondaire']:
-        return 'PPS'
-    if level in ['Collégial', 'Universitaire']:
-        return 'PostSecondary'
-    if level in ['Éducation aux adultes', 'Formation professionnelle']:
-        return 'ProfessionalTraining-AdultEducation'
+# Classify the school level into the three categories: PPS, Post-secondary and Professional Training - Adult Education
 schools['SchoolType'] = schools['Level'].apply(classify_school_levels)
 schools.sort_values(by=['FSA'], inplace=True)
 
 # Process the FSA to make correspondance between 2016 and 2020
 schools['FSA'] = schools['FSA'].apply(lambda x: process_fsa(x, 2020))
+
 # Group by FSA to get the number of schools (for each category) per FSA
 schools = schools.groupby(['FSA', 'SchoolType']).agg(NbSchool=('SchoolId','count')).reset_index()
 schools.head()
 ```
 
-## Walk score
+### Walk score
 
 
-Let's see all the available and not available walk scores, transit scores and bike scores on the map.
+A  map  of  the  Island  of  Montreal’s  FSAs  is  created  with  QGIS  software  using  the  2016 Census Boundary file available on the Statistics Canada website. Then random points are generated with QGIS software for each FSA. The number of generated points depends on the size of each FSA to guarantee an equivalent point density. A python code computes the walk score, transit score and bike score for each generated points, using the Walk Score API, and finally a dataset containing the following information was built.
+
+As the walk scores, transit scores and bike scores are obtained using the API from randomly created points in the Island of Montreal, we need to ensure the score is available for enough points in the island. Therefore, we visualize the available and unavailable scores on a map for the walk score, bike score and transit score.
 
 ```{python}
-# Data for Montreal
-latitude = 45.535433
-longitude = -73.636493
-mtl_geo_json = "../data/maps/mtl_fsa_map.geojson"
-mtl_grp_geo_json = "../data/maps/mtl_fsa_grouped_map.geojson"
-
 # Get the walkscore data
 ws = pd.read_csv('../data/walkscore/walkscore.csv', index_col=0)
 
-# Choose the score to visualize
-score = 'Walkscore' # 'Walkscore' or 'Transitscore' or 'Bikescore'
+# Data for Montreal
+latitude = 45.535433
+longitude = -73.636493
 
-# Build the map
+# Build the map for the walk scores
+print('Walk score')
 nan_ws_map = folium.Map(location=[latitude, longitude], zoom_start=10, tiles=None)
 folium.TileLayer('CartoDB positron',name="Light Map",control=False).add_to(nan_ws_map)
-for lat, lng, score in zip(ws['Latitude'], ws['Longitude'], ws[score]):
+for lat, lng, score in zip(ws['Latitude'], ws['Longitude'], ws['Walkscore']):
     label = folium.Popup(str(score), parse_html=True)
     if np.isnan(score):
         folium.CircleMarker(
@@ -263,50 +333,112 @@ for lat, lng, score in zip(ws['Latitude'], ws['Longitude'], ws[score]):
 nan_ws_map
 ```
 
-The available walk scores and bike scores can be processed but the transit scores are not relevant because they are too concentrated on a single geographic area.
+```{python}
+# Build the map for the bike scores
+print('Bike score')
+nan_bs_map = folium.Map(location=[latitude, longitude], zoom_start=10, tiles=None)
+folium.TileLayer('CartoDB positron',name="Light Map",control=False).add_to(nan_bs_map)
+for lat, lng, score in zip(ws['Latitude'], ws['Longitude'], ws['Bikescore']):
+    label = folium.Popup(str(score), parse_html=True)
+    if np.isnan(score):
+        folium.CircleMarker(
+            [lat, lng],
+            radius=1,
+            popup=label,
+            color='red',
+            parse_html=False).add_to(nan_bs_map)
+    else:
+        folium.CircleMarker(
+            [lat, lng],
+            radius=1,
+            popup=label,
+            color='blue',
+            parse_html=False).add_to(nan_bs_map)
+nan_bs_map
+```
+
+```{python}
+# Build the map for the transit scores
+print('Transit score')
+nan_ts_map = folium.Map(location=[latitude, longitude], zoom_start=10, tiles=None)
+folium.TileLayer('CartoDB positron',name="Light Map",control=False).add_to(nan_ts_map)
+for lat, lng, score in zip(ws['Latitude'], ws['Longitude'], ws['Transitscore']):
+    label = folium.Popup(str(score), parse_html=True)
+    if np.isnan(score):
+        folium.CircleMarker(
+            [lat, lng],
+            radius=1,
+            popup=label,
+            color='red',
+            parse_html=False).add_to(nan_ts_map)
+    else:
+        folium.CircleMarker(
+            [lat, lng],
+            radius=1,
+            popup=label,
+            color='blue',
+            parse_html=False).add_to(nan_ts_map)
+nan_ts_map
+```
+
+The walk scores and bike scores are available for almost all the generated points, so this information can be used. However the transit scores are missing for most of the island, so this feature cannot be used for this project. Finally, a dataset containing the average walk score and average bike score per FSA is built.
 
 ```{python}
 # Process the FSA to make correspondance between 2016 and 2020
 ws['FSA'] = ws['FSA'].apply(lambda x: process_fsa(x, 2016))
-# Get the mean score for each FSA
+
+# Get the average score for each FSA
 walkscore = ws.groupby('FSA', as_index=False).mean()
+
 # Drop the transitscore because it is not relevant
 walkscore.drop(columns='Transitscore', inplace=True)
 walkscore.head()
 ```
 
-## Census
+### Census
+
+
+The  2016  census  data  from  Statistics  Canada  provides  the  following  information  for  each Island of Montreal’s FSAs. A python code build a dataset containing all this information for all FSAs of the Island of Montreal.
+- Average number of rooms per dwelling
+- Median value of dwellings
+- Number of private households by tenure (owner, renter or band housing)
+- Number of private dwellings by period of construction
+- Number of occupied private dwellings by structural type of dwelling
+- Number of couple census families in private households by number of children
+- Number of lone-parent census families in private households by number of children
+- Number of non-census-family households by number of persons
+- Median total income in 2015 among recipients
+- Population in 2016
+- Median age of the population
 
 ```{python}
 # Get the census data
 census = pd.read_csv('../data/census/census_20200808_1501.csv', index_col=0)
 for fsa in ['H4T', 'H4Y', 'H4Z', 'H5A', 'H5B']:
     census = census[census['FSA'] != fsa] # No data for these new FSAs
+    
 # Process the FSA to make correspondance between 2016 and 2020
 census['FSA'] = census['FSA'].apply(lambda x: process_fsa(x, 2016))
 census.head()
 ```
 
-# Creating the master data frames
+## Data preprocessing
 
-```{python}
-# Get the average of a column, weighted by another
-def weighted_average(df, df_weight, field):
-    df = df.join(df_weight.set_index('FSA'), on='FSA')
-    d1 = df.drop_duplicates(subset=['FSA'], keep=('first'))
-    d2 = df.drop_duplicates(subset=['FSA'], keep=('last'))
-    df = pd.concat([d1,d2]).drop_duplicates()
-    df['Product'] = df[field] * df['Weight']
-    df = df.groupby('FSA', as_index=False).sum()
-    df[field] = df['Product'] / df['Weight']
-    return df[['FSA', field]]
-```
 
-## Environment data frame
+All the data can be grouped in three master datasets:
+- Environment dataset:  grouping the appeals and amenities
+- Population dataset:  grouping the population information
+- Housing dataset:  grouping the information about the housing
+
+To compare the FSAs, the densities must be considered instead of raw numbers.  Therefore, the areas of the Island of Montreal’s  FSAs, available on the Montreal postal codes Cybowebpag, are used.
+
+
+### Environment dataset
 
 ```{python}
 # Get the FSA with their areas to create the master data frame for the FSA environment
 df_env = pd.read_csv('../data/fsa_areas.csv', index_col=0)
+
 # Process the FSA to make correspondance between 2016 and 2020
 df_env['FSA'] = df_env['FSA'].apply(lambda x: process_fsa(x, 2020))
 df_env = df_env.groupby('FSA', as_index=False).sum()
@@ -319,7 +451,7 @@ categories = ['RestaurantBar', 'EntertainmentCulture', 'Sports', 'Outdoor']
 for category in categories:
     df_temp = foursquare[foursquare['Category'] == category][['FSA', 'NbVenue']]
     df_env = df_env.join(df_temp.rename(columns={'NbVenue': category}).set_index('FSA'), on='FSA')
-    # Get the density instead of the number for a better comparison
+    # Get the density instead of the raw number for a better comparison
     df_env[category] = df_env[category] / df_env['Area(km2)']
 
 # Add the metro stations
@@ -329,7 +461,7 @@ df_env['MetroStations'] = df_env['MetroStations'] / df_env['Area(km2)']
 
 # Add the daycares
 df_env = df_env.join(daycare.set_index('FSA'), on='FSA')
-# Get the density instead of the number for a better comparison
+# Get the density instead of the raw number for a better comparison
 df_env['Daycare'] = df_env['Daycare'] / df_env['Area(km2)']
 
 # Add the schools
@@ -337,7 +469,7 @@ school_types = ['PPS', 'PostSecondary']
 for school_type in school_types:
     df_temp = schools[schools['SchoolType'] == school_type][['FSA', 'NbSchool']]
     df_env = df_env.join(df_temp.rename(columns={'NbSchool': school_type}).set_index('FSA'), on='FSA')
-    # Get the density instead of the number for a better comparison
+    # Get the density instead of the raw number for a better comparison
     df_env[school_type] = df_env[school_type] / df_env['Area(km2)']
 
 # Fill the Nan values with zero
@@ -347,11 +479,25 @@ df_env.drop(columns=['Area(km2)'], inplace=True)
 df_env.round(2).head()
 ```
 
-## Population data frame
+### Population dataset
+
+```{python}
+def weighted_average(df, df_weight, field):
+    # Get the average of a column, weighted by another
+    df = df.join(df_weight.set_index('FSA'), on='FSA')
+    d1 = df.drop_duplicates(subset=['FSA'], keep=('first'))
+    d2 = df.drop_duplicates(subset=['FSA'], keep=('last'))
+    df = pd.concat([d1,d2]).drop_duplicates()
+    df['Product'] = df[field] * df['Weight']
+    df = df.groupby('FSA', as_index=False).sum()
+    df[field] = df['Product'] / df['Weight']
+    return df[['FSA', field]]
+```
 
 ```{python}
 # Get the FSA with their areas to create the master data frame for the FSA population
 df_pop = pd.read_csv('../data/fsa_areas.csv', index_col=0)
+
 # Process the FSA to make correspondance between 2016 and 2020
 df_pop['FSA'] = df_pop['FSA'].apply(lambda x: process_fsa(x, 2020))
 df_pop = df_pop.groupby('FSA', as_index=False).sum()
@@ -360,7 +506,7 @@ df_pop = df_pop.groupby('FSA', as_index=False).sum()
 # Population
 df_temp = census[census['CategoryHierId'] == '1.1.1'][['FSA', 'CategoryValue']].groupby('FSA', as_index=False).sum()
 df_pop = df_pop.join(df_temp.rename(columns={'CategoryValue': 'Population'}).set_index('FSA'), on='FSA')
-# Get the density of population instead of the number for a better comparison
+# Get the density of population instead of the raw number for a better comparison
 df_pop['Population'] = df_pop['Population'] / df_pop['Area(km2)']
 
 # Age, Income
@@ -402,11 +548,12 @@ df_pop.drop(columns=['Area(km2)'], inplace=True)
 df_pop.round(2).head()
 ```
 
-## Housing data frame
+### Housing dataset
 
 ```{python}
 # Get the FSA with their areas to create the master data frame for the FSA housing
 df_hous = pd.read_csv('../data/fsa_areas.csv', index_col=0)
+
 # Process the FSA to make correspondance between 2016 and 2020
 df_hous['FSA'] = df_hous['FSA'].apply(lambda x: process_fsa(x, 2020))
 df_hous = df_hous.groupby('FSA', as_index=False).sum()
@@ -416,7 +563,7 @@ df_hous = df_hous.groupby('FSA', as_index=False).sum()
 df_temp = census[census['TypeHierId'] == '2.1.1.1'][['FSA', 'CategoryValue']].groupby(
     'FSA', as_index=False).sum()
 df_hous = df_hous.join(df_temp.rename(columns={'CategoryValue': 'NbDwellings'}).set_index('FSA'), on='FSA')
-# Get the density of dwellings instead of the number for better comparison
+# Get the density of dwellings instead of the raw number for better comparison
 df_hous['NbDwellings'] = df_hous['NbDwellings'] / df_hous['Area(km2)']
 
 # Value and average number of rooms
@@ -492,14 +639,14 @@ df_hous.drop(columns=['Area(km2)'], inplace=True)
 df_hous.round(2).head()
 ```
 
-# Data exploratory analysis
+# Data exploratory analysis <a name="exploratory"></a>
 
 
-We create functions to plot pareto charts and histograms.
+An exploratory data analysis is conducted to highlight some preliminary observations about the collected data.
 
 ```{python}
 def pareto_chart(df, column, ylabel):
-    
+    # Plot a pareto chart
     df_bar = df[['FSA', column]].sort_values(by=[column], ascending=False)
     df_bar['Cumulative'] = df_bar[column].cumsum() / df_bar[column].sum() * 100
     fig, ax = plt.subplots(figsize=(20,10))
@@ -518,6 +665,7 @@ def pareto_chart(df, column, ylabel):
 
     
 def plot_hist(df, column, bins, decimals, xlabel):
+    # Plot a histogram
     count, bin_edges = np.histogram(df[column], bins)
     round_bin_edges = [round(num, decimals) for num in bin_edges]
     n = len(df[column])
@@ -531,16 +679,15 @@ def plot_hist(df, column, bins, decimals, xlabel):
     plt.grid(axis='y', alpha=0.75)
 ```
 
-## Environment data frame
+### Environment dataset
 
 
-Let's see the choropleth map of Montreal for the walk scores. Here are the groups values and descriptions:
-
-- 0-25: Car-dependent *(almost all errands require a car)*
-- 25-50: Car-dependent *(most errands require a car)*
-- 50-70: Somewhat walkable *(some errands can be accomplished on foot)*
-- 70-90: Very walkable *(most errands can be accomplished on foot)*
-- 90-100: Walker's paradise *(daily errands do not require a car)*
+Let's see a choropleth map of the walk scores in the Island of Montreal. They are grouped within the following categories defined on the Walk Score website.
+- **0-25 - Car-dependent:** Almost all errands require a car.
+- **25-50 - Car-dependent:** Most errands require a car.
+- **50-70 - Somewhat walkable:** Some errands can be accomplished on foot.
+- **70-90 - Very walkable:** Most errands can be accomplished on foot.
+- **90-100 - Walker’s paradise:** Daily errands do not require a car.
 
 ```{python}
 # Data for Montreal
@@ -568,49 +715,69 @@ folium.Choropleth(
 ws_map
 ```
 
-Let's see a pareto chart of the restaurants and bars in Montreal.
+The highest walk scores are concentrated in the center of the Island and decreases rapidly with distance.
+
+Let's see a pareto chart of the density of restaurants and bars in the Island of Montreal.
 
 ```{python}
 pareto_chart(df_env, 'RestaurantBar', 'Density of restaurants and bars')
 ```
 
-Let's see a histogram of the PPS in Montreal.
+The distribution is not uniform. Three FSAs (H3A-H3B, H2Z and H2Y) have a much higher density than the others and represent 26% of the total (for 3% of the FSAs). They are located in Montreal Downtown. H3A-H3B reaches a density of 104 restaurants and bars per km² while the median is 5 and the mean is 9.
+
+Let's see a histogram of the PPS in the Island of Montreal.
 
 ```{python}
 plot_hist(df_env, 'PPS', 15, 0, 'Density of PPS')
 ```
 
-## Population data frame
+The majority of the FSAs has a density between 0 and 4 PPS per km², while there are few ones with a density between 13 and 15.
 
 
-Let's see a pareto chart of the density of population.
+### Population dataset
+
+
+Let's see a pareto chart of the density of population in the Island of Montreal.
 
 ```{python}
 pareto_chart(df_pop, 'Population', 'Density of population')
 ```
 
-Let's see a histogram of the age of population.
+The distribution is not uniform with 18% of the FSAs (the top 17) that represents 35.6% of the population. The H3N FSA has a much higher density of population than the other FSAs, with a value of 16 973 people per km², while the median value is 5 614 and the mean value 5 974. On the contrary, some FSAs have a density around 300 people per km².
+
+Let's see a histogram of the median age of the population in the Island of Montreal.
 
 ```{python}
 plot_hist(df_pop, 'Age', 10, 1, 'Median age of population')
 ```
 
-## Housing data frame
+The majority of the FSAs (around 40%) has a median age between 41 and 45 years of age. There are around 3% of the FSAs that have a quite young population, with a median age between 28 and 30 years of age.
 
 
-Let's see a pareto chart of the value of the real estate properties.
+### Housing dataset
+
+
+Let's see a pareto chart of the average value of the properties in the Island of Montreal.
 
 ```{python}
 pareto_chart(df_hous, 'Value($)', 'Average value ($) of the properties')
 ```
 
-Let's see a histogram of the average number of rooms in the dwellings.
+Again, the distribution is not uniform. The H3N FSA alone represents 3.7% of the total value of the properties, with an average value of 1 500 249 CAD, which is much higher than the other FSAs. The median average value is 400 532 CAD and the mean average value is 436 497 CAD. 4% of the FSAs (the top 4) represent 10% of the total value.
+
+Let's see a histogram of the average number of rooms in the dwellings in the Island of Montreal.
 
 ```{python}
 plot_hist(df_hous, 'NbRooms', 10, 1, 'Average number of rooms in the dwellings')
 ```
 
-# Clustering
+This value is between 3 and 8.4 across all the FSAs and the majority of the FSAs' dwellings (more than 35%) has between 4.1 and 4.6 rooms on average.
+
+
+# Clustering <a name="clustering"></a>
+
+
+Three different clustering models (K-Means, DBSCAN and agglomerative clustering) are used and compared for this project. For each of them, a parameters selection is performed. Before applying any clustering model, a data standardization is required. It scales the data with zero mean and unit variance.
 
 ```{python}
 silhouette_env = {}
@@ -623,27 +790,39 @@ calinski_hous = {}
 
 ## K-Means
 
+
+K-Means model is an iterative algorithm that divides the data into k non-overlapping subsets (clusters) without any cluster-internal structure. It identifies k number of centroids (arithmetic mean of all the data points that belong to a cluster) and then allocates every data point to the nearest cluster, while keeping the centroids as small as possible. Data points within a cluster are very similar while also being very different across different clusters.
+
+The number of clusters k has to be given as a parameter for this model. A common way to choose the optimal number of clusters is to use the elbow method. It consists in running the clustering across different values of k and look at the graph of distortion versus k. The right value for the number of clusters is for the elbow point (where the rate of decrease sharply shifts). The KElbowVisualizer from Yellowbrick, which implements the elbow method, is used for the three datasets. Finally, using the number of clusters identified with the elbow method, the K-Means approach is implemented.
+
 ```{python}
 def apply_kmeans(df):
+    # Identify the optimal number of clusters for the K-Means approach and implement it
     # Data scaling (making sure to drop potential columns with cluster labels for modelling)
     cluster_columns = []
     for column in df.columns:
         if 'Cluster' in column:
             cluster_columns.append(column)
     X = StandardScaler().fit_transform(df.drop(columns=cluster_columns).set_index('FSA'))
+    
     # Get the optimal number of clusters for KMeans using the elbow method
     visualizer = KElbowVisualizer(KMeans(), k=(1,10), metric='distortion', timings=False).fit(X)
     k_cluster = visualizer.elbow_value_
     visualizer.show()
+    
     # Run KMeans model and get the clusters label
     kmeans = KMeans(n_clusters=k_cluster, init='k-means++', n_init=15).fit(X)
     df['Cluster_kmeans'] = kmeans.labels_
+    
     # Get the silhouette and calinski-harabaz scores to measure and compare the performance
     silhouette = metrics.silhouette_score(X, kmeans.labels_)
     calinski = metrics.calinski_harabasz_score(X, kmeans.labels_)
     
     return df, silhouette, calinski
+```
 
+```{python}
+# Apply K-Means function for each dataset
 print('Environment')
 df_env, silhouette_env['kmeans'], calinski_env['kmeans'] = apply_kmeans(df_env)
 print('Population')
@@ -654,8 +833,14 @@ df_hous, silhouette_hous['kmeans'], calinski_hous['kmeans'] = apply_kmeans(df_ho
 
 ## DBSCAN
 
+
+DBSCAN model is a density-based spatial clustering of applications with noise. It locates regions of high density, separated from one another by regions of low density, and separates outliers. It gives arbitrary-shaped clusters and not spherical ones, so there can be clusters within clusters.
+
+The maximum distance between two samples for one to be considered as in the neighborhood of the other is an input of this algorithm. It is represented as the radius of the neighborhood and if there are enough points within this distance, it is a dense area. Another input of this algorithm is the number of samples in a neighborhood for a point to be considered as a core point. This is the minimum number of neighbors to define a cluster. This second parameter is set to 2 because having a cluster with two FSAs is not a problem for this project. On the other hand, having outliers should be avoided because all FSAs must belong to a cluster. So the first parameter (eps) is chosen as the value that gives the minimum number of outliers and more than one cluster. Finally, the DBSCAN approach is implemented with these selected parameters.
+
 ```{python}
 def get_dbscan_parameters(df, min_pts):
+    # Get the optimal parameters for DBSCAN
     eps_min = 0.1
     eps_max = 3.2
     step = 0.01
@@ -712,9 +897,11 @@ def get_dbscan_parameters(df, min_pts):
     
     
     return eps
+```
 
-
+```{python}
 def apply_dbscan(df, eps, min_pts):
+    # Implement the DBSCAN approach
     # Data scaling (making sure to drop potential columns with cluster labels for modelling)
     cluster_columns = []
     for column in df.columns:
@@ -729,8 +916,11 @@ def apply_dbscan(df, eps, min_pts):
     calinski = metrics.calinski_harabasz_score(X, dbscan.labels_)
     
     return df, silhouette, calinski
+```
 
+```{python}
 min_pts = 2
+
 # Get the eps value for each dataset
 print('Environment')
 eps_env = get_dbscan_parameters(df_env, min_pts)
@@ -738,7 +928,8 @@ print('Population')
 eps_pop = get_dbscan_parameters(df_pop, min_pts)
 print('Housing')
 eps_hous = get_dbscan_parameters(df_hous, min_pts)
-# Run the DBSCAN model for each dataset
+
+# Run the DBSCAN model for each dataset with the identified parameters
 df_env, silhouette_env['DBSCAN'], calinski_env['DBSCAN'] = apply_dbscan(df_env, eps_env, min_pts)
 df_pop, silhouette_pop['DBSCAN'], calinski_pop['DBSCAN'] = apply_dbscan(df_pop, eps_pop, min_pts)
 df_hous, silhouette_hous['DBSCAN'], calinski_hous['DBSCAN'] = apply_dbscan(df_hous, eps_hous, min_pts)
@@ -746,8 +937,14 @@ df_hous, silhouette_hous['DBSCAN'], calinski_hous['DBSCAN'] = apply_dbscan(df_ho
 
 ## Agglomerative clustering
 
+
+Agglomerative clustering is one of the two types of hierarchical clustering. Hierarchical clustering algorithms build a hierarchy of clusters where each node is a cluster, constituted of the clusters of its daughter nodes. Divisive clustering has a top-down strategy because it starts from a large cluster with every data points to smaller pieces of one data point. Agglomerative clustering, on the contrary, has a bottom-up strategy. Its starts with each observation in its own cluster to merge them into larger clusters and finally get a cluster containing all observations. The agglomerative clustering constructs a distance matrix and merge the two closest clusters at each step.
+
+A good visualization of hierarchical clustering is dendrograms. It shows each merge as a horizontal line and its y-coordinate shows the similarity of the two clusters that were merged. The larger the vertical lines in the dendrogram, the further away the clusters are from each other. To get the optimal number of clusters, we generally set the threshold in such a way that it cuts the tallest vertical line. This is the method we apply here for the three datasets. Finally, using the number of clusters identified with the dendrograms, the agglomerative clustering approach is implemented.
+
 ```{python}
 def plot_dendrogram(df, title, select=None):
+    # Plot dendrograms with the potential identified threshold that cuts the tallest vertical line
     # Data scaling (making sure to drop potential columns with cluster labels for modelling)
     cluster_columns = []
     for column in df.columns:
@@ -765,15 +962,10 @@ def plot_dendrogram(df, title, select=None):
     dend = shc.dendrogram(shc.linkage(X, method='ward'))
     if select is not None:
         plt.axhline(y=select, color='m', linestyle='--')
-    
-    
-plot_dendrogram(df_env, 'Environment', 15)
-plot_dendrogram(df_pop, 'Population', 12.5)
-plot_dendrogram(df_hous, 'Housing', 22.5)
-```
-
-```{python}
+        
+        
 def apply_agglomerative(df, n_cluster):
+    # Implement the agglomerative clustering
     # Data scaling (making sure to drop potential columns with cluster labels for modelling)
     cluster_columns = []
     for column in df.columns:
@@ -788,16 +980,24 @@ def apply_agglomerative(df, n_cluster):
     calinski = metrics.calinski_harabasz_score(X, agglo.labels_)
     
     return df, silhouette, calinski
+```
 
+```{python}
+#Plot the dendrograms for each dataset with the identified thresholds
+plot_dendrogram(df_env, 'Environment', 15) # threshold that cuts the tallest vertical line
+plot_dendrogram(df_pop, 'Population', 12.5) # threshold that cuts the tallest vertical line
+plot_dendrogram(df_hous, 'Housing', 22.5) # threshold that cuts the tallest vertical line
+
+# Implement the agglomerative clustering for each dataset with the identified number of clusters
 df_env, silhouette_env['AgglomerativeClustering'], calinski_env['AgglomerativeClustering'] = apply_agglomerative(df_env, 3)
 df_pop, silhouette_pop['AgglomerativeClustering'], calinski_pop['AgglomerativeClustering'] = apply_agglomerative(df_pop, 3)
 df_hous, silhouette_hous['AgglomerativeClustering'], calinski_hous['AgglomerativeClustering'] = apply_agglomerative(df_hous, 2)
 ```
 
-# Analysis
+# Comparison between the models <a name="comparison"></a>
 
 
-Let's see the silhouette scores and Calinski-Harabaz indexes for the three data frames and the three models.
+To evaluate and compare the models, metrics like the silhouette score or the Calinski-Harabaz index can be used. The silhouette score, or silhouette coefficient, measures how well samples are clustered with other samples that are similar to each other. It is calculated using the mean intra-cluster distance, i.e the average distance between each point within a cluster, and the mean nearest-cluster distance, i.e the average distance between all clusters. The silhouette score varies between -1 and 1. A score of 1 means the cluster is dense and well-separated than other clusters; a score of 0 represents overlapping clusters with samples very close to the decision boundary of the neighboring clusters; a value of -1 means the clusters are assigned in the wrong way. The Calinski-Harabaz index, also known as the variance ratio criterion, is defined as the ratio between the within-cluster dispersion and the between-cluster dispersion. The score is not bounded. The higher the score is, the better the clustering is.
 
 ```{python}
 print('Silhouette score - Environment data frame:\n', silhouette_env, '\n')
@@ -808,10 +1008,15 @@ print('Calinski-Harabaz index - Population data frame:\n', calinski_pop, '\n')
 print('Calinski-Harabaz index - Housing data frame:\n', calinski_hous, '\n')
 ```
 
-We will see a 2D projection of the data frames and their clusters.
+The metrics show, especially with the Calinski-Harabz index, that the DBSCAN algorithm seems to give poorer results than the two other algorithms, for all the three datasets. This is in line with the observations made at the time of the parameters selection. Indeed, the DBSCAN model identifies outliers, whereas the problem here requires all the FSAs to be clustered to have a portrait of the Island of Montreal as a whole. The DBSCAN algorithm is not suitable for this problem, therefore only the K-Means and the agglomerative clustering are considered in the following sections.
+
+The silhouette scores and Calinski-Harabez indexes for K-Means and agglomerative clustering are quite similar. For the environment dataset, the silhouette score is the best for the agglomerative clustering, while the Calinski-Harabaz index is the best for K-Means. For the population dataset, both the silhouette score and Calinski-Harabaz index are the best for K-Means. Finally, for the housing dataset, the silhouette score is the best for K-Means, while the Calinski-Harabaz index is the best for the agglomerative clustering. Both scores do not really help to determine the best algorithm in our context, except for the population dataset where the K-Means approach seems to be more efficient.
+
+To have a better understanding of the performances of the two approaches, the results of the clustering are visualized. To do so, a linear dimensionality reduction is performed using Singular Value Decomposition of the data. It provides a projection in a lower dimensional space and allows to visualize the results in two dimensions.
 
 ```{python}
 def plot_results(df, method, clusters, title):
+    # Perform a linear dimensionality reduction to plot a 2D projection of the clustering results
     method_columns = {'K-Means': 'Cluster_kmeans',
                       'DBSCAN': 'Cluster_DBSCAN',
                       'Agglomerative Clustering': 'Cluster_Agglomerative'}
@@ -870,6 +1075,7 @@ def plot_results(df, method, clusters, title):
 ```
 
 ```{python}
+# Plot the 2D projection of the clustering results ofK-Means and agglomerative clustering for the three datasets
 df = df_env
 method = 'K-Means'
 clusters = [0, 1, 2]
@@ -877,11 +1083,45 @@ title = 'Environment'
 plot_results(df, method, clusters, title)
 ```
 
-Let's now see the results of the K-Means model for the three data frames by looking at the main statistics and a map showing the clusters.
+The two dimensions projection for the environment dataset highlights that the points from the two biggest clusters obtained with the agglomerative clustering are quite mixed, whereas the clusters obtained with the K-Means method are fairly distinct. For the population dataset, the same observation can be made. As the number of clusters built by the two approaches is different for the housing dataset, it is difficult to compare the resulting clusters. However, according to the two dimensions projection they seem well separated in both cases.
+
+In conclusion, in the context of this project the K-Means model and the agglomerative clustering provide good results, whereas the DBSCAN approach is not able to build suitable clusters. In addition, as the clusters obtained with the K-Means model are well separated, this method is preferred to answer to our problematic.
+
+
+# Clustering results <a name="results"></a>
+
+
+The clusters obtained with the K-Means model are analyzed in details in order to identify the specifics of each cluster for the three datasets.
+
+
+### Environment dataset
+
+
+Let's look at the main descriptive statistics of the environment dataset and its three clusters.
+
+```{python}
+df_env.describe().round(1)
+```
 
 ```{python}
 df_env[df_env['Cluster_kmeans'] == 0].describe().round(1)
 ```
+
+```{python}
+df_env[df_env['Cluster_kmeans'] == 1].describe().round(1)
+```
+
+```{python}
+df_env[df_env['Cluster_kmeans'] == 2].describe().round(1)
+```
+
+The descriptive statistics confirm that the three clusters have different profiles. The cluster 1 has really high walk score and bike score and a very large density of each venue, except for PPS schools that is lower than cluster 0. The cluster 0 has medium walk score and bike score and a density of venues always higher than cluster 2 but much lower than cluster 1. According to these observations, the clusters can be described as following.
+
+- Cluster 0: Medium environment
+- Cluster 1: Very rich environment
+- Cluster 2: Poor environment
+
+Let's see a map of the clustered FSAs of the Island of Montreal based on the environment dataset.
 
 ```{python}
 env_map = folium.Map(location=[latitude, longitude], zoom_start=10, tiles=None)
@@ -901,6 +1141,35 @@ folium.Choropleth(
 env_map
 ```
 
+### Population dataset
+
+
+Let's look at the main descriptive statistics of the population dataset and its three clusters.
+
+```{python}
+df_pop.describe().round(1)
+```
+
+```{python}
+df_pop[df_pop['Cluster_kmeans'] == 0].describe().round(1)
+```
+
+```{python}
+df_pop[df_pop['Cluster_kmeans'] == 1].describe().round(1)
+```
+
+```{python}
+df_pop[df_pop['Cluster_kmeans'] == 2].describe().round(1)
+```
+
+The descriptive statistics confirm that the three clusters have different profiles. The cluster 1 has a high density of population, the cluster 0 a medium one and the cluster 2 a low one. The cluster 1 has also the youngest population, while the cluster 2 has the oldest. About the median income, the clusters 0 and 1 are quite similar, but the cluster 2 has a median income much higher than the two others. The cluster 1 has a majority of people living alone, about half of the population, and more people living with other non-family members than the other clusters. In addition, it has less families with children. The cluster 2 has a majority of families with children, almost half of the population, and the most of childless couples. It has the least of people living alone or with non-family members. Finally, the cluster 0 has almost as many people living alone as families with children, which are the majority of the population. It has less couples without children. According to these observations, the clusters can be described as following.
+
+- Cluster 0: Medium density, average age, medium income, mixed types of families
+- Cluster 1: High density, young population, medium income, majority (half) of people living alone and the most people living with non-family members
+- Cluster 2: Low density, old population, high income, majority (almost half) of families with children and the most childless couples
+
+Let's see a map of the clustered FSAs of the Island of Montreal based on the population dataset.
+
 ```{python}
 pop_map = folium.Map(location=[latitude, longitude], zoom_start=10, tiles=None)
 folium.TileLayer('CartoDB positron',name="Light Map",control=False).add_to(pop_map)
@@ -918,6 +1187,40 @@ folium.Choropleth(
 
 pop_map
 ```
+
+### Housing dataset
+
+
+Let's look at the main descriptive statistics of the housing dataset and its four clusters.
+
+```{python}
+df_hous.describe().round(1)
+```
+
+```{python}
+df_hous[df_hous['Cluster_kmeans'] == 0].describe().round(1)
+```
+
+```{python}
+df_hous[df_hous['Cluster_kmeans'] == 1].describe().round(1)
+```
+
+```{python}
+df_hous[df_hous['Cluster_kmeans'] == 2].describe().round(1)
+```
+
+```{python}
+df_hous[df_hous['Cluster_kmeans'] == 3].describe().round(1)
+```
+
+As for the two other datasets, the descriptive statistics confirm that the clusters have different profiles. The cluster 1 has a low density of dwellings, while the cluster 2 has a high one, the cluster 0 a medium high one and the cluster 3 a medium low one. The cluster 3 has a very high median value of dwellings, the cluster 1 a low value (more than 2.5 less than the cluster 3) and the clusters 0 and 2 are quite similar, with a medium value. About the average number of rooms per dwellings, the cluster 3 has a very high number of rooms, as would be expected since it is usually correlated with the price. The cluster 1 has less rooms than the cluster 3 but still a quite high number of rooms. The clusters 0 and 2 have a lower number of rooms, with cluster 2 above cluster 0. Then, the clusters 1 and 3 have more owners than tenants, while the cluster 2 has a large majority of tenants and the cluster 0 is pretty balanced. For the type of dwellings, more than 80\% of the dwellings are apartments for the clusters 0 and 2, whereas the cluster 3 is equally shared among detached houses, attached houses and apartments. The cluster 1 has almost half of dwellings that are detached houses and then a majority of apartments. Finally, for the year of construction, the cluster 3 has very old properties, the cluster 0 has quite recent ones and the clusters 1 and 2 have a majority of old ones. According to these observations, the clusters can be described as following.
+
+- Cluster 0: Medium high density, medium value, low number of rooms, almost as many owners as tenants, mostly apartments, and recent properties
+- Cluster 1: Low density, low value, high number of rooms, mainly owners, majority of detached houses, and quite old properties
+- Cluster 2: High density, medium value, medium number of rooms, majority of tenants, mostly apartments, and old properties
+- Cluster 3: Medium low density, very high value, very high number of rooms, mainly owners, equitably distributed types of dwellings, and very old properties
+
+Let's see a map of the clustered FSAs of the Island of Montreal based on the housing dataset.
 
 ```{python}
 hous_map = folium.Map(location=[latitude, longitude], zoom_start=10, tiles=None)
@@ -937,6 +1240,19 @@ folium.Choropleth(
 hous_map
 ```
 
-```{python}
+# Discussion <a name="discussion"></a>
 
-```
+
+There are several approaches to perform clustering and the most suitable model for a specific project must be selected. In the context of our study, three algorithms are considered: K-Means, DBSCAN and agglomerative clustering. DBSCAN is an algorithm that automatically identifies outliers. It could be useful for some applications but it does not meet our needs for this project. All of the FSAs need to belong to a cluster and none of them must be considered as outlier. The DBSCAN approach could therefore be eliminated according to this observation, without even testing it. The DBSCAN model should then be used only if outliers are possible.
+
+For the two other approaches, the parameters selection allows to have the best results. Both algorithms perform fairly equally but the detailed analysis of the results points out the K-Means model as the best regarding the goal of our study. To select the best model for a project, the choice must not be driven only by the model performance metrics. Indeed, the expected results for the application must also be considered.
+
+
+# Conclusion <a name="conclusion"></a>
+
+
+In this project, homogeneous clusters of neighborhoods of the Island of Montreal are built based on the environment, the population and the housing. The data required is collected from different sources, then cleaned and processed to be used for three clustering approaches: K-Means, DBSCAN and agglomerative clustering. After a parameters selection for each one, the three models and their results are compared and the K-Means approach is identified as the best for this study. The clusters thus obtained are described and analysed.
+
+This study shows that the clusters obtained regarding the environment, the population and the housing are quite different, many neighborhoods are together for a specific category but not for the two others. However, there is always a distinction between the center and the periphery of the Island and more generally some areas are quite homogeneous regarding the three categories. In conclusion, even if some areas seem to be uniform, neighborhoods at a FSA scale needs to be considered to get a precise understanding of a specific location regarding the environment, the population or the housing.
+
+This project could be improved by exploring some other directions. First, instead of considering three separated datasets, the main features from all the data sources could be considered as a whole and the clustering could be performed with all these features. It would give an overall profile of the Island of Montreal, taking into account the environment, the population and the housing. The data could also be refined. For example, real estate data could be collected to consider the actual sale price of properties, instead of their declared value, and the current  number of properties for sale or for rent. Another interesting path to explore could be the study of the evolution of neighborhoods over time. Historical data could be used to build clusters over time. This analysis would show how the neighborhoods' profiles evolves and how quickly it happens.
